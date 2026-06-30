@@ -28,6 +28,6 @@ type Job struct {
 
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
-	ProcesseAt   *time.Time `json:"processed_at,omitempty"`   // nil if not processed
+	ProcessedAt  *time.Time `json:"processed_at,omitempty"`   // nil if not processed
 	ErrorMessage string     `json:"errror_message,omitempty"` // only set on failure
 }
