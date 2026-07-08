@@ -121,7 +121,7 @@ func (q *MemoryQueue) Recover() error {
 			}
 			job.Status = models.StatusPending
 		}
-		if err := q.Enqueue(job); err != nil {
+		if err := q.Enque(job); err != nil {
 			return fmt.Errorf("recover: failed to enqueue job %s: %w", job.ID, err)
 		}
 	}
