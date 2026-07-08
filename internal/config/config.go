@@ -41,7 +41,7 @@ type RetryConfig struct {
 	BackoffSeconds int `mapstructure:"backoff_seconds"`
 }
 
-// TimeputConfig holds per-job timeout settings.
+// TimeoutConfig holds per-job timeout settings.
 type TimeoutConfig struct {
 	JobSeconds int `mapstructure:"job_seconds"`
 }
