@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+queue:
+  workers: 5
+
+email:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: ""
+  smtp_pass: ""
+
+retry:
+  max_attempts: 3
+  backoff_seconds: 5
+
+timeout:
+  job_seconds: 30
