@@ -32,7 +32,7 @@ func NewMemoryQueue(store storage.Storage, buffersize int) *MemoryQueue {
 // Enqueue pushed a job into the chanel. The job must already be saved
 // to storage bt the caller.
 
-func (q *MemoryQueue) Enque(job *models.Job) error {
+func (q *MemoryQueue) Enqueue(job *models.Job) error {
 	q.mu.Lock()
 	if q.closed {
 		q.mu.Unlock()
@@ -84,18 +84,18 @@ func (q *MemoryQueue) Nack(jobID string) error {
 		return err
 	}
 	job.Status = models.StatusPending
-	return q.Enque(job)
+	return q.Enqueue(job)
 }
 
 // PendingCOunt returns the number of jobs currently in the channel.
-func (q *MemoryQueue) PendingCOunt() int {
+func (q *MemoryQueue) PendingCount() int {
 	return len(q.jobs)
 }
 
 // Close shuts down the channel. Workers reading from Dequeue will recieve nil
 // once the cahnnel drains.
 
-func (q *MemoryQueue) close() error {
+func (q *MemoryQueue) Close() error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if !q.closed {
@@ -121,7 +121,7 @@ func (q *MemoryQueue) Recover() error {
 			}
 			job.Status = models.StatusPending
 		}
-		if err := q.Enque(job); err != nil {
+		if err := q.Enqueue(job); err != nil {
 			return fmt.Errorf("recover: failed to enqueue job %s: %w", job.ID, err)
 		}
 	}
