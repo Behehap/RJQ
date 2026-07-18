@@ -64,7 +64,7 @@ func migrate(db *sql.DB) error {
 }
 
 // / ListPendingJObs returns all jobs that haven't reached a termnal state.
-func (s *SQLiteStorage) ListPendingJObs() ([]*models.Job, error) {
+func (s *SQLiteStorage) ListPendingJobs() ([]*models.Job, error) {
 	query := `
 	SELECT id, to_email, subject, body, status, retry_count, max_retries, created_at, updated_at, processed_at, error_message
 	From jobs
