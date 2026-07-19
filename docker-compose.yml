@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  rjq:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./rjq.db:/app/rjq.db
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - RJQ_EMAIL_SMTP_USER=${RJQ_EMAIL_SMTP_USER:-}
+      - RJQ_EMAIL_SMTP_PASS=${RJQ_EMAIL_SMTP_PASS:-}
+    restart: unless-stopped
