@@ -7,7 +7,7 @@ import "time"
 const (
 	StatusPending    = "pending"
 	StatusProcessing = "processing"
-	StatusCompeleted = "compelted"
+	StatusCompleted  = "completed"
 	StatusFailed     = "failed"
 )
 

@@ -58,7 +58,7 @@ func (q *MemoryQueue) Dequeue() (*models.Job, error) {
 
 // Ack updates the job status to completed.
 func (q *MemoryQueue) Ack(jobID string) error {
-	return q.store.UpdateJobStatus(jobID, models.StatusCompeleted, "")
+	return q.store.UpdateJobStatus(jobID, models.StatusCompleted, "")
 }
 
 // Nack updates the job status to failed if max retries reached,
