@@ -47,6 +47,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/health", h.Health)
 	r.Get("/jobs", h.ListJobs)
 	r.Get("/dashboard", h.Dashboard)
+	r.Get("/processing", h.GetProcessing)
+	r.Get("/pending", h.GetPending)
 }
 
 // CreateJob handles POST /jobs.
@@ -131,9 +133,6 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 // GetStats handles GET /stats.
 // Counts jobs by status directly from the database.
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
-	// We don't have a dedicated stats method on Storage,
-	// so we lean on ListPendingJobs + a simple count approach.
-	// In production you'd add a Stats() method to the Storage interface.
 	pending, err := h.store.ListPendingJobs()
 	if err != nil {
 		log.WithError(err).Error("Failed to list pending jobs")
@@ -141,9 +140,25 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	processing, err := h.store.GetProcessingJobs()
+	if err != nil {
+		log.WithError(err).Error("Failed to list processing jobs")
+		writeError(w, http.StatusInternalServerError, "failed to get stats")
+		return
+	}
+
+	// True queue depth = pending minus processing (processing jobs are included in ListPendingJobs)
+	truePending := 0
+	for _, j := range pending {
+		if j.Status == models.StatusPending {
+			truePending++
+		}
+	}
+
 	stats := map[string]int{
-		"pending": len(pending),
-		"queued":  h.queue.PendingCount(),
+		"pending":    truePending,
+		"processing": len(processing),
+		"queued":     h.queue.PendingCount(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -179,6 +194,35 @@ func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
 		jobs = []*models.Job{}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
+}
+
+// GetProcessing returns all jobs currently being processed.
+func (h *Handler) GetProcessing(w http.ResponseWriter, r *http.Request) {
+	jobs, err := h.store.GetProcessingJobs()
+	if err != nil {
+		log.WithError(err).Error("Failed to get processing jobs")
+		writeError(w, http.StatusInternalServerError, "failed to get processing jobs")
+		return
+	}
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
+}
+
+func (h *Handler) GetPending(w http.ResponseWriter, r *http.Request) {
+	jobs, err := h.store.ListAllPendingJobs()
+	if err != nil {
+		log.WithError(err).Error("Failed to get pending jobs")
+		writeError(w, http.StatusInternalServerError, "failed to get pending jobs")
+		return
+	}
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
 }

@@ -32,4 +32,13 @@ type Storage interface {
 
 	// ListRecentJobs returns the most recent jobs, newest first.
 	ListRecentJobs(limit int) ([]*models.Job, error)
+
+	// GetProcessingJobs returns all jobs currently being processed.
+	GetProcessingJobs() ([]*models.Job, error)
+
+	// ListAllPendingJobs returns all jobs with status 'pending' (not processing).
+	ListAllPendingJobs() ([]*models.Job, error)
+
+	// UpdateJobRetry increments the retry count and updates status.
+	UpdateJobRetry(id string, status string, retryCount int, errMsg string) error
 }

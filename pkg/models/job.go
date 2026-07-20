@@ -24,7 +24,7 @@ type Job struct {
 	Body       string `json:"body"`
 	Status     string `json:"status"`
 	RetryCount int    `json:"retry_count"` // how mant times we're retried
-	MaxRetries int    `josn:"max_retries"` // from config , r.g., 3
+	MaxRetries int    `json:"max_retries"` // from config , r.g., 3
 
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`

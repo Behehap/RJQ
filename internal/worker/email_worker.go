@@ -62,16 +62,6 @@ func (w *EmailWorker) Process(ctx context.Context, job *models.Job) error {
 			}).Error("Failed to send email")
 			return err
 		}
-		log.WithFields(log.Fields{
-			"job_id": job.ID,
-			"to":     job.ToEmail,
-		}).Info("Email sent")
-		select {
-		case <-time.After(w.demoDelay):
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		return nil
 	case <-ctx.Done():
 		log.WithFields(log.Fields{
 			"job_id": job.ID,
@@ -79,6 +69,20 @@ func (w *EmailWorker) Process(ctx context.Context, job *models.Job) error {
 		}).Error("Email sending timed out")
 		return ctx.Err()
 	}
+
+	// Demo delay — keeps job in "processing" state so the dashboard
+	// progress bar can fill completely before the job completes.
+	select {
+	case <-time.After(w.demoDelay):
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	log.WithFields(log.Fields{
+		"job_id": job.ID,
+		"to":     job.ToEmail,
+	}).Info("Email sent")
+	return nil
 }
 
 // buildMessage constructs a minimal RFC 822 email message.

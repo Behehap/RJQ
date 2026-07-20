@@ -75,12 +75,11 @@ func (q *MemoryQueue) Nack(jobID string) error {
 
 	job.RetryCount++
 	if job.RetryCount >= job.MaxRetries {
-		return q.store.UpdateJobStatus(jobID, models.StatusFailed,
+		return q.store.UpdateJobRetry(jobID, models.StatusFailed, job.RetryCount,
 			fmt.Sprintf("exhausted %d retries", job.RetryCount))
 	}
 
-	// Re-queue for another attempt.
-	if err := q.store.UpdateJobStatus(jobID, models.StatusPending, ""); err != nil {
+	if err := q.store.UpdateJobRetry(jobID, models.StatusPending, job.RetryCount, ""); err != nil {
 		return err
 	}
 	job.Status = models.StatusPending
@@ -126,4 +125,9 @@ func (q *MemoryQueue) Recover() error {
 		}
 	}
 	return nil
+}
+
+// SetProcessing marks a job as processing in storage.
+func (q *MemoryQueue) SetProcessing(jobID string) error {
+	return q.store.UpdateJobStatus(jobID, models.StatusProcessing, "")
 }

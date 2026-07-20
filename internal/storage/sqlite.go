@@ -135,7 +135,6 @@ func (s *SQLiteStorage) UpdateJobStatus(id string, status string, errMsg string)
 	UPDATE jobs
 	SET status = ?,
 	    error_message = ?,
-	    retry_count = retry_count + 1,
 	    updated_at = ?,
 	    processed_at = CASE WHEN ? IN ('completed', 'failed') THEN ? ELSE processed_at END
 	WHERE id = ?`
@@ -252,4 +251,101 @@ func (s *SQLiteStorage) ListRecentJobs(limit int) ([]*models.Job, error) {
 	}
 
 	return jobs, rows.Err()
+}
+
+// GetProcessingJobs returns all jobs currently being processed.
+func (s *SQLiteStorage) GetProcessingJobs() ([]*models.Job, error) {
+	query := `
+	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	       created_at, updated_at, processed_at, error_message
+	FROM jobs
+	WHERE status = 'processing'
+	ORDER BY created_at ASC`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list processing jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*models.Job
+	for rows.Next() {
+		job := &models.Job{}
+		var processedAt sql.NullTime
+		var errorMsg sql.NullString
+
+		err := rows.Scan(
+			&job.ID, &job.ToEmail, &job.Subject, &job.Body,
+			&job.Status, &job.RetryCount, &job.MaxRetries,
+			&job.CreatedAt, &job.UpdatedAt, &processedAt, &errorMsg,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan job row: %w", err)
+		}
+		if processedAt.Valid {
+			job.ProcessedAt = &processedAt.Time
+		}
+		if errorMsg.Valid {
+			job.ErrorMessage = errorMsg.String
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *SQLiteStorage) ListAllPendingJobs() ([]*models.Job, error) {
+	query := `
+	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	       created_at, updated_at, processed_at, error_message
+	FROM jobs
+	WHERE status = 'pending'
+	ORDER BY created_at ASC`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all pending jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*models.Job
+	for rows.Next() {
+		job := &models.Job{}
+		var processedAt sql.NullTime
+		var errorMsg sql.NullString
+
+		err := rows.Scan(
+			&job.ID, &job.ToEmail, &job.Subject, &job.Body,
+			&job.Status, &job.RetryCount, &job.MaxRetries,
+			&job.CreatedAt, &job.UpdatedAt, &processedAt, &errorMsg,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan job row: %w", err)
+		}
+		if processedAt.Valid {
+			job.ProcessedAt = &processedAt.Time
+		}
+		if errorMsg.Valid {
+			job.ErrorMessage = errorMsg.String
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, rows.Err()
+}
+
+func (s *SQLiteStorage) UpdateJobRetry(id string, status string, retryCount int, errMsg string) error {
+	now := time.Now()
+	query := `
+	UPDATE jobs
+	SET status = ?,
+	    retry_count = ?,
+	    error_message = ?,
+	    updated_at = ?,
+	    processed_at = CASE WHEN ? IN ('completed', 'failed') THEN ? ELSE processed_at END
+	WHERE id = ?`
+
+	_, err := s.db.Exec(query, status, retryCount, errMsg, now, status, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to update job retry: %w", err)
+	}
+	return nil
 }

@@ -18,8 +18,13 @@
       }
       h1 {
         font-size: 1.5rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.25rem;
         color: #38bdf8;
+      }
+      .subtitle {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-bottom: 1.5rem;
       }
 
       .stats {
@@ -66,6 +71,77 @@
         letter-spacing: 0.05em;
       }
 
+      /* Worker cards */
+      .worker-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .worker-card {
+        background: #1e293b;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+      }
+      .worker-card.active {
+        border: 1px solid #38bdf8;
+      }
+      .worker-name {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        margin-bottom: 0.5rem;
+      }
+      .worker-card.active .worker-name {
+        color: #38bdf8;
+      }
+      .worker-status {
+        font-size: 0.65rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .worker-card.active .worker-status {
+        color: #38bdf8;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 0.35rem;
+        background: #334155;
+        border-radius: 0.25rem;
+        overflow: hidden;
+        margin-top: 0.5rem;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: #38bdf8;
+        border-radius: 0.25rem;
+      }
+      .worker-card.active .progress-fill {
+        animation: progress 5s linear forwards;
+      }
+      @keyframes progress {
+        0% {
+          width: 0%;
+        }
+        100% {
+          width: 100%;
+        }
+      }
+
+      .worker-job-id {
+        font-size: 0.6rem;
+        color: #38bdf8;
+        font-family: monospace;
+        margin-top: 0.35rem;
+        word-break: break-all;
+      }
+
+      /* Queue */
       .queue-bar {
         background: #1e293b;
         border-radius: 0.5rem;
@@ -79,13 +155,25 @@
       }
       .queue-item {
         background: #334155;
-        color: #38bdf8;
+        color: #facc15;
         padding: 0.35rem 0.75rem;
         border-radius: 0.25rem;
         font-size: 0.75rem;
         font-family: monospace;
+        animation: fadeIn 0.3s ease;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
       }
 
+      /* Table */
       table {
         width: 100%;
         border-collapse: collapse;
@@ -135,16 +223,41 @@
         background: #f87171;
         color: #0f172a;
       }
+      tr.row-completed {
+        animation: rowFlash 0.5s ease;
+      }
+      @keyframes rowFlash {
+        0% {
+          background: #14532d;
+        }
+        100% {
+          background: transparent;
+        }
+      }
 
       .refresh {
         color: #64748b;
         font-size: 0.7rem;
         margin-top: 1rem;
+        text-align: center;
+      }
+
+      tr.row-failed {
+        animation: rowFlashRed 0.5s ease;
+      }
+      @keyframes rowFlashRed {
+        0% {
+          background: #7f1d1d;
+        }
+        100% {
+          background: transparent;
+        }
       }
     </style>
   </head>
   <body>
     <h1>RJQ Dashboard</h1>
+    <div class="subtitle">Reliable Job Queue — real-time monitoring</div>
 
     <div class="stats">
       <div class="stat pending">
@@ -165,7 +278,12 @@
       </div>
     </div>
 
-    <div class="section-title">Queue (in memory)</div>
+    <div class="section-title">Workers</div>
+    <div class="worker-grid" id="worker-grid">
+      <span style="color: #64748b; font-size: 0.8rem">Loading...</span>
+    </div>
+
+    <div class="section-title">Queue</div>
     <div class="queue-bar" id="queue-bar">
       <span style="color: #64748b; font-size: 0.8rem">No jobs in queue</span>
     </div>
@@ -186,61 +304,199 @@
     </table>
 
     <div class="refresh">Auto-refreshing every 2s</div>
-
     <script>
-      async function fetchData() {
-        const [statsRes, jobsRes] = await Promise.all([
+      var previousJobs = {};
+      var previousCompleted = 0;
+
+      function timeAgo(dateStr) {
+        var now = new Date();
+        var then = new Date(dateStr);
+        var diff = Math.floor((now - then) / 1000);
+        if (diff < 0) diff = 0;
+        if (diff < 60) return diff + "s ago";
+        if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+        return Math.floor(diff / 3600) + "h ago";
+      }
+
+      function fetchData() {
+        Promise.all([
           fetch("/stats"),
+          fetch("/processing"),
+          fetch("/pending"),
           fetch("/jobs"),
-        ]);
-        const stats = await statsRes.json();
-        const jobs = await jobsRes.json();
+        ])
+          .then(function (results) {
+            return Promise.all([
+              results[0].json(),
+              results[1].json(),
+              results[2].json(),
+              results[3].json(),
+            ]);
+          })
+          .then(function (data) {
+            var stats = data[0];
+            var processing = data[1];
+            var pending = data[2];
+            var jobs = data[3];
 
-        // Stats
-        document.getElementById("stat-pending").textContent =
-          stats.pending || 0;
-        document.getElementById("stat-completed").textContent = jobs.filter(
-          (j) => j.status === "completed",
-        ).length;
-        document.getElementById("stat-failed").textContent = jobs.filter(
-          (j) => j.status === "failed",
-        ).length;
-        document.getElementById("stat-processing").textContent = jobs.filter(
-          (j) => j.status === "processing",
-        ).length;
+            var currentJobs = {};
+            jobs.forEach(function (j) {
+              currentJobs[j.id] = j;
+            });
 
-        // Queue bar
-        const queueBar = document.getElementById("queue-bar");
-        const pendingJobs = jobs.filter((j) => j.status === "pending");
-        if (pendingJobs.length === 0) {
-          queueBar.innerHTML =
-            '<span style="color:#64748b;font-size:0.8rem;">No jobs in queue</span>';
-        } else {
-          queueBar.innerHTML = pendingJobs
-            .map(
-              (j, i) =>
-                `<div class="queue-item">#${i + 1}: ${j.id.substring(0, 8)}...</div>`,
-            )
-            .join("");
-        }
+            var completedJobs = jobs.filter(function (j) {
+              return j.status === "completed";
+            });
+            var failedJobs = jobs.filter(function (j) {
+              return j.status === "failed";
+            });
 
-        // Jobs table
-        const tbody = document.getElementById("jobs-table");
-        const recentJobs = jobs.slice(0, 20);
-        tbody.innerHTML = recentJobs
-          .map(
-            (j) => `
-    <tr>
-      <td style="font-family:monospace;font-size:0.7rem;">${j.id.substring(0, 12)}...</td>
-      <td>${j.to}</td>
-      <td>${j.subject}</td>
-      <td><span class="badge badge-${j.status}">${j.status}</span></td>
-      <td>${j.retry_count}/${j.max_retries}</td>
-      <td style="font-size:0.7rem;color:#94a3b8;">${new Date(j.created_at).toLocaleTimeString()}</td>
-    </tr>
-  `,
-          )
-          .join("");
+            document.getElementById("stat-pending").textContent = stats.pending;
+            document.getElementById("stat-processing").textContent =
+              processing.length;
+            document.getElementById("stat-completed").textContent =
+              completedJobs.length;
+            document.getElementById("stat-failed").textContent =
+              failedJobs.length;
+
+            // Worker grid
+            var workerCount = 5;
+            var workerGrid = document.getElementById("worker-grid");
+            var html = "";
+            for (var i = 0; i < workerCount; i++) {
+              var active = processing[i] || null;
+              var cls = active ? "worker-card active" : "worker-card";
+              var progress = 0;
+              var remaining = 0;
+
+              if (active) {
+                var startTime = new Date(active.updated_at).getTime();
+                var now = Date.now();
+                var timeoutMs = 5000;
+                var elapsed = now - startTime;
+                progress = Math.min(
+                  100,
+                  Math.floor((elapsed / timeoutMs) * 100),
+                );
+                remaining = Math.max(
+                  0,
+                  Math.ceil((timeoutMs - elapsed) / 1000),
+                );
+              }
+
+              html += '<div class="' + cls + '">';
+              html += '<div class="worker-name">Worker #' + (i + 1) + "</div>";
+              if (active) {
+                html += '<div class="worker-status">PROCESSING</div>';
+                html +=
+                  '<div class="worker-job-id">' +
+                  active.to.substring(0, 18) +
+                  "</div>";
+                html +=
+                  '<div class="worker-job-id" style="font-size:0.55rem;color:#94a3b8;">' +
+                  active.subject +
+                  "</div>";
+                html +=
+                  '<div class="progress-bar"><div class="progress-fill" style="width:' +
+                  progress +
+                  '%;"></div></div>';
+                html +=
+                  '<div style="font-size:0.55rem;color:#64748b;margin-top:0.2rem;">' +
+                  remaining +
+                  "s remaining</div>";
+              } else {
+                html += '<div class="worker-status">IDLE</div>';
+                html +=
+                  '<div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>';
+              }
+              html += "</div>";
+            }
+            workerGrid.innerHTML = html;
+
+            // Queue bar
+            var queueBar = document.getElementById("queue-bar");
+            if (pending.length === 0) {
+              queueBar.innerHTML =
+                '<span style="color:#64748b;font-size:0.8rem;">Queue empty</span>';
+            } else {
+              var qhtml = "";
+              pending.forEach(function (j, idx) {
+                qhtml +=
+                  '<div class="queue-item">#' +
+                  (idx + 1) +
+                  ": " +
+                  j.to.substring(0, 15) +
+                  ' <span style="color:#94a3b8;">(' +
+                  j.subject +
+                  ")</span></div>";
+              });
+              queueBar.innerHTML = qhtml;
+            }
+
+            // Jobs table
+            var tbody = document.getElementById("jobs-table");
+            var recentJobs = jobs.slice(0, 20);
+            var newCompleted = completedJobs.length;
+            var flashNew = newCompleted > previousCompleted;
+            previousCompleted = newCompleted;
+
+            tbody.innerHTML = recentJobs
+              .map(function (j) {
+                var maxRetries = j.max_retries || j.MaxRetries || 3;
+                var prevState = previousJobs[j.id];
+                var rowClass = "";
+
+                if (
+                  j.status === "completed" &&
+                  prevState &&
+                  prevState.status !== "completed"
+                ) {
+                  rowClass = "row-completed";
+                }
+                if (
+                  j.status === "failed" &&
+                  prevState &&
+                  prevState.status !== "failed"
+                ) {
+                  rowClass = "row-failed";
+                }
+
+                return (
+                  '<tr class="' +
+                  rowClass +
+                  '">' +
+                  '<td style="font-family:monospace;font-size:0.7rem;">' +
+                  j.id.substring(0, 12) +
+                  "...</td>" +
+                  "<td>" +
+                  j.to +
+                  "</td>" +
+                  "<td>" +
+                  j.subject +
+                  "</td>" +
+                  '<td><span class="badge badge-' +
+                  j.status +
+                  '">' +
+                  j.status +
+                  "</span></td>" +
+                  "<td>" +
+                  j.retry_count +
+                  "/" +
+                  maxRetries +
+                  "</td>" +
+                  '<td style="font-size:0.7rem;color:#94a3b8;">' +
+                  timeAgo(j.created_at) +
+                  "</td>" +
+                  "</tr>"
+                );
+              })
+              .join("");
+
+            previousJobs = currentJobs;
+          })
+          .catch(function (e) {
+            console.error("Dashboard error:", e);
+          });
       }
 
       fetchData();

@@ -31,4 +31,7 @@ type Queue interface {
 	// Close shuts down the queue. No new jobs can be enqueued after
 	// Close is called. Workers should dreain existing jobs.
 	Close() error
+
+	// SetProcessing marks a job as currently being processed.
+	SetProcessing(jobID string) error
 }
