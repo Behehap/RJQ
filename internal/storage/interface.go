@@ -29,4 +29,7 @@ type Storage interface {
 
 	// Close releases ant resources held by the storage backend.
 	Close() error
+
+	// ListRecentJobs returns the most recent jobs, newest first.
+	ListRecentJobs(limit int) ([]*models.Job, error)
 }

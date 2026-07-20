@@ -7,6 +7,9 @@ cmd/server/server
 *.db
 *.sqlite
 
+# Environment secrets
+.env
+
 # IDE
 .vscode/
 .idea/

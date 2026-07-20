@@ -23,7 +23,8 @@ type ServerConfig struct {
 }
 
 type QueueConfig struct {
-	Workers int
+	Workers      int
+	DemoDelaySec int `mapstructure:"demo_delay_seconds"`
 }
 
 // EmailConfig holds SMTP settings for sending emails.

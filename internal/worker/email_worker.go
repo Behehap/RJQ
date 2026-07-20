@@ -13,21 +13,23 @@ import (
 
 // EmailWorker sends emails via SMTP.
 type EmailWorker struct {
-	smtpHost string
-	smtpPort int
-	smtpUser string
-	smtpPass string
-	timeout  time.Duration
+	smtpHost  string
+	smtpPort  int
+	smtpUser  string
+	smtpPass  string
+	timeout   time.Duration
+	demoDelay time.Duration
 }
 
 // NewEmailWorker creates an EmailWorker with the given SMTP settings.
-func NewEmailWorker(host string, port int, user, pass string, timeout time.Duration) *EmailWorker {
+func NewEmailWorker(host string, port int, user, pass string, timeout time.Duration, demoDelay time.Duration) *EmailWorker {
 	return &EmailWorker{
-		smtpHost: host,
-		smtpPort: port,
-		smtpUser: user,
-		smtpPass: pass,
-		timeout:  timeout,
+		smtpHost:  host,
+		smtpPort:  port,
+		smtpUser:  user,
+		smtpPass:  pass,
+		timeout:   timeout,
+		demoDelay: demoDelay,
 	}
 }
 
@@ -64,6 +66,11 @@ func (w *EmailWorker) Process(ctx context.Context, job *models.Job) error {
 			"job_id": job.ID,
 			"to":     job.ToEmail,
 		}).Info("Email sent")
+		select {
+		case <-time.After(w.demoDelay):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		return nil
 	case <-ctx.Done():
 		log.WithFields(log.Fields{

@@ -3,6 +3,7 @@ server:
 
 queue:
   workers: 5
+  demo_delay_seconds: 0
 
 email:
   smtp_host: "smtp.gmail.com"

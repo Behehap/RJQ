@@ -202,3 +202,54 @@ func (s *SQLiteStorage) ListPendingJobs() ([]*models.Job, error) {
 func (s *SQLiteStorage) Close() error {
 	return s.db.Close()
 }
+
+// ListRecentJobs returns the most recent jobs, newest first.
+func (s *SQLiteStorage) ListRecentJobs(limit int) ([]*models.Job, error) {
+	query := `
+	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	       created_at, updated_at, processed_at, error_message
+	FROM jobs
+	ORDER BY created_at DESC
+	LIMIT ?`
+
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list recent jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*models.Job
+	for rows.Next() {
+		job := &models.Job{}
+		var processedAt sql.NullTime
+		var errorMsg sql.NullString
+
+		err := rows.Scan(
+			&job.ID,
+			&job.ToEmail,
+			&job.Subject,
+			&job.Body,
+			&job.Status,
+			&job.RetryCount,
+			&job.MaxRetries,
+			&job.CreatedAt,
+			&job.UpdatedAt,
+			&processedAt,
+			&errorMsg,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan job row: %w", err)
+		}
+
+		if processedAt.Valid {
+			job.ProcessedAt = &processedAt.Time
+		}
+		if errorMsg.Valid {
+			job.ErrorMessage = errorMsg.String
+		}
+
+		jobs = append(jobs, job)
+	}
+
+	return jobs, rows.Err()
+}

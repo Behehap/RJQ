@@ -47,6 +47,7 @@ func main() {
 		cfg.Email.SMTPUser,
 		cfg.Email.SMTPPass,
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
+		time.Duration(cfg.Queue.DemoDelaySec)*time.Second,
 	)
 	pool := worker.NewPool(q, emailWorker, cfg.Queue.Workers,
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second)

@@ -1,6 +1,8 @@
 package api
 
 import (
+	"embed"
+
 	"encoding/json"
 	"net/http"
 	"time"
@@ -27,12 +29,24 @@ func NewHandler(s storage.Storage, q queue.Queue) *Handler {
 	return &Handler{store: s, queue: q}
 }
 
+var _ = embed.FS{} // ensures embed package is not removed by the compiler
+//go:embed dashboard.html
+var dashboardHTML string
+
+// Dashboard serves the dashboard HTML page.
+func (h *Handler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(dashboardHTML))
+}
+
 // RegisterRoutes attaches all endpoints to a chi router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/jobs", h.CreateJob)
 	r.Get("/jobs/{id}", h.GetJob)
 	r.Get("/stats", h.GetStats)
 	r.Get("/health", h.Health)
+	r.Get("/jobs", h.ListJobs)
+	r.Get("/dashboard", h.Dashboard)
 }
 
 // CreateJob handles POST /jobs.
@@ -151,4 +165,20 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"error": msg,
 	})
+}
+
+// ListJobs handles GET /jobs?limit=20.
+func (h *Handler) ListJobs(w http.ResponseWriter, r *http.Request) {
+	jobs, err := h.store.ListRecentJobs(20)
+	if err != nil {
+		log.WithError(err).Error("Failed to list jobs")
+		writeError(w, http.StatusInternalServerError, "failed to list jobs")
+		return
+	}
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
 }
