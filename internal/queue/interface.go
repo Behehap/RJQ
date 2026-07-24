@@ -34,4 +34,8 @@ type Queue interface {
 
 	// SetProcessing marks a job as currently being processed.
 	SetProcessing(jobID string) error
+
+	// RequeueAtFront resets a job to pending without incrementing retry_count.
+	// Used when a job is preempted (not failed).
+	RequeueAtFront(id string) error
 }

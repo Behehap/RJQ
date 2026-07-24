@@ -35,7 +35,7 @@ func main() {
 	defer store.Close()
 
 	// Initialize queue and recover pending jobs from storage.
-	q := queue.NewMemoryQueue(store, cfg.Queue.Workers*2)
+	q := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
 	if err := q.Recover(); err != nil {
 		log.WithError(err).Fatal("Failed to recover jobs from storage")
 	}
@@ -50,7 +50,9 @@ func main() {
 		time.Duration(cfg.Queue.DemoDelaySec)*time.Second,
 	)
 	pool := worker.NewPool(q, emailWorker, cfg.Queue.Workers,
-		time.Duration(cfg.Timeout.JobSeconds)*time.Second)
+		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
+		time.Duration(cfg.Queue.CooldownSec)*time.Second,
+	)
 	pool.Start()
 
 	// Initialize API router.
@@ -59,7 +61,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	handler := api.NewHandler(store, q)
+	handler := api.NewHandler(store, q, pool)
 	handler.RegisterRoutes(r)
 
 	// Start HTTP server.

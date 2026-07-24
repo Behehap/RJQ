@@ -71,7 +71,6 @@
         letter-spacing: 0.05em;
       }
 
-      /* Worker cards */
       .worker-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -81,11 +80,28 @@
       .worker-card {
         background: #1e293b;
         border-radius: 0.5rem;
-        padding: 1rem;
+        padding: 1.5rem 1rem;
         text-align: center;
+        transition: all 0.3s ease;
       }
       .worker-card.active {
         border: 1px solid #38bdf8;
+      }
+      .worker-card.active.priority-2 {
+        border: 2px solid #fb923c;
+        box-shadow: 0 0 8px rgba(251, 146, 60, 0.3);
+      }
+      .worker-card.active.priority-3 {
+        border: 2px solid #f87171;
+        box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+      }
+      .worker-card.completed-flash {
+        border: 1px solid #4ade80;
+        background: #14532d;
+      }
+      .worker-card.failed-flash {
+        border: 1px solid #f87171;
+        background: #7f1d1d;
       }
       .worker-name {
         font-size: 0.75rem;
@@ -96,52 +112,90 @@
       .worker-card.active .worker-name {
         color: #38bdf8;
       }
+      .worker-card.active.priority-2 .worker-name {
+        color: #fb923c;
+      }
+      .worker-card.active.priority-3 .worker-name {
+        color: #f87171;
+      }
       .worker-status {
         font-size: 0.65rem;
         color: #64748b;
-        margin-bottom: 0.5rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .worker-card.active .worker-status {
         color: #38bdf8;
       }
+      .worker-card.active.priority-2 .worker-status {
+        color: #fb923c;
+      }
+      .worker-card.active.priority-3 .worker-status {
+        color: #f87171;
+      }
 
-      .progress-bar {
-        width: 100%;
-        height: 0.35rem;
+      .priority-badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.15rem;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+      }
+      .priority-badge.prio-1 {
         background: #334155;
-        border-radius: 0.25rem;
-        overflow: hidden;
-        margin-top: 0.5rem;
+        color: #94a3b8;
       }
-      .progress-fill {
-        height: 100%;
-        width: 0%;
-        background: #38bdf8;
-        border-radius: 0.25rem;
+      .priority-badge.prio-2 {
+        background: #fb923c;
+        color: #0f172a;
       }
-      .worker-card.active .progress-fill {
-        animation: progress 5s linear forwards;
+      .priority-badge.prio-3 {
+        background: #f87171;
+        color: #0f172a;
       }
-      @keyframes progress {
-        0% {
-          width: 0%;
+
+      .spinner {
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid #334155;
+        border-radius: 50%;
+        margin: 0.5rem auto;
+      }
+      .worker-card.active .spinner {
+        border-top-color: #38bdf8;
+        animation: spin 0.8s linear infinite;
+      }
+      .worker-card.active.priority-2 .spinner {
+        border-top-color: #fb923c;
+        border-left-color: #fb923c;
+      }
+      .worker-card.active.priority-3 .spinner {
+        border-top-color: #f87171;
+        border-left-color: #f87171;
+        animation: spin 0.5s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
-        100% {
-          width: 100%;
-        }
+      }
+
+      .result-icon {
+        font-size: 1.5rem;
+        margin: 0.5rem auto;
       }
 
       .worker-job-id {
         font-size: 0.6rem;
-        color: #38bdf8;
+        color: #94a3b8;
         font-family: monospace;
         margin-top: 0.35rem;
         word-break: break-all;
       }
 
-      /* Queue */
       .queue-bar {
         background: #1e293b;
         border-radius: 0.5rem;
@@ -154,13 +208,32 @@
         align-items: center;
       }
       .queue-item {
-        background: #334155;
-        color: #facc15;
         padding: 0.35rem 0.75rem;
         border-radius: 0.25rem;
         font-size: 0.75rem;
         font-family: monospace;
         animation: fadeIn 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .queue-item.prio-1 {
+        background: #334155;
+        color: #facc15;
+        border-left: 3px solid #facc15;
+      }
+      .queue-item.prio-2 {
+        background: #3b2200;
+        color: #fb923c;
+        border-left: 3px solid #fb923c;
+      }
+      .queue-item.prio-3 {
+        background: #3b0000;
+        color: #f87171;
+        border-left: 3px solid #f87171;
+        animation:
+          fadeIn 0.3s ease,
+          urgentPulse 1s infinite;
       }
       @keyframes fadeIn {
         from {
@@ -172,8 +245,33 @@
           transform: scale(1);
         }
       }
+      @keyframes urgentPulse {
+        0%,
+        100% {
+          box-shadow: 0 0 4px rgba(248, 113, 113, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 12px rgba(248, 113, 113, 0.7);
+        }
+      }
 
-      /* Table */
+      .queue-badge {
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.15rem;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .queue-badge.urgent {
+        background: #fb923c;
+        color: #0f172a;
+      }
+      .queue-badge.super {
+        background: #f87171;
+        color: #0f172a;
+        animation: urgentPulse 1s infinite;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -234,14 +332,6 @@
           background: transparent;
         }
       }
-
-      .refresh {
-        color: #64748b;
-        font-size: 0.7rem;
-        margin-top: 1rem;
-        text-align: center;
-      }
-
       tr.row-failed {
         animation: rowFlashRed 0.5s ease;
       }
@@ -252,6 +342,13 @@
         100% {
           background: transparent;
         }
+      }
+
+      .refresh {
+        color: #64748b;
+        font-size: 0.7rem;
+        margin-top: 1rem;
+        text-align: center;
       }
     </style>
   </head>
@@ -295,6 +392,7 @@
           <th>ID</th>
           <th>To</th>
           <th>Subject</th>
+          <th>Priority</th>
           <th>Status</th>
           <th>Retries</th>
           <th>Created</th>
@@ -304,9 +402,14 @@
     </table>
 
     <div class="refresh">Auto-refreshing every 2s</div>
+
     <script>
       var previousJobs = {};
-      var previousCompleted = 0;
+      var previousProcessingIds = [null, null, null, null, null];
+      var workerFlash = [null, null, null, null, null];
+
+      var prioNames = ["", "NORMAL", "URGENT", "SUPER"];
+      var prioColors = ["", "#94a3b8", "#fb923c", "#f87171"];
 
       function timeAgo(dateStr) {
         var now = new Date();
@@ -344,73 +447,134 @@
               currentJobs[j.id] = j;
             });
 
-            var completedJobs = jobs.filter(function (j) {
+            var completedCount = jobs.filter(function (j) {
               return j.status === "completed";
-            });
-            var failedJobs = jobs.filter(function (j) {
+            }).length;
+            var failedCount = jobs.filter(function (j) {
               return j.status === "failed";
-            });
+            }).length;
 
             document.getElementById("stat-pending").textContent = stats.pending;
             document.getElementById("stat-processing").textContent =
               processing.length;
             document.getElementById("stat-completed").textContent =
-              completedJobs.length;
-            document.getElementById("stat-failed").textContent =
-              failedJobs.length;
+              completedCount;
+            document.getElementById("stat-failed").textContent = failedCount;
+
+            var currentProcessingIds = [];
+            for (var i = 0; i < 5; i++) {
+              currentProcessingIds.push(
+                processing[i] ? processing[i].id : null,
+              );
+            }
+
+            for (var i = 0; i < 5; i++) {
+              var prevId = previousProcessingIds[i];
+              var currId = currentProcessingIds[i];
+
+              if (workerFlash[i] !== null) continue;
+
+              if (prevId && prevId !== currId) {
+                var finishedJob = currentJobs[prevId];
+                if (
+                  finishedJob &&
+                  (finishedJob.status === "completed" ||
+                    finishedJob.status === "failed")
+                ) {
+                  workerFlash[i] = {
+                    to: finishedJob.to,
+                    subject: finishedJob.subject,
+                    status: finishedJob.status,
+                    priority: finishedJob.priority || 1,
+                  };
+                  (function (idx) {
+                    setTimeout(function () {
+                      workerFlash[idx] = null;
+                    }, 3000);
+                  })(i);
+                }
+              }
+            }
+
+            previousProcessingIds = currentProcessingIds;
 
             // Worker grid
-            var workerCount = 5;
             var workerGrid = document.getElementById("worker-grid");
             var html = "";
-            for (var i = 0; i < workerCount; i++) {
-              var active = processing[i] || null;
-              var cls = active ? "worker-card active" : "worker-card";
-              var progress = 0;
-              var remaining = 0;
 
-              if (active) {
-                var startTime = new Date(active.updated_at).getTime();
-                var now = Date.now();
-                var timeoutMs = 5000;
-                var elapsed = now - startTime;
-                progress = Math.min(
-                  100,
-                  Math.floor((elapsed / timeoutMs) * 100),
-                );
-                remaining = Math.max(
-                  0,
-                  Math.ceil((timeoutMs - elapsed) / 1000),
-                );
+            for (var i = 0; i < 5; i++) {
+              var active = processing[i] || null;
+
+              if (workerFlash[i] !== null) {
+                var f = workerFlash[i];
+                var cls =
+                  f.status === "completed" ? "completed-flash" : "failed-flash";
+                var icon = f.status === "completed" ? "&#10003;" : "&#10007;";
+                var color = f.status === "completed" ? "#4ade80" : "#f87171";
+                var label = f.status === "completed" ? "COMPLETED" : "FAILED";
+
+                html += '<div class="worker-card ' + cls + '">';
+                html +=
+                  '<div class="worker-name">Worker #' + (i + 1) + "</div>";
+                html +=
+                  '<div class="result-icon" style="color:' +
+                  color +
+                  ';">' +
+                  icon +
+                  "</div>";
+                html +=
+                  '<div class="worker-status" style="color:' +
+                  color +
+                  ';">' +
+                  label +
+                  "</div>";
+                html +=
+                  '<div class="worker-job-id">' +
+                  f.to.substring(0, 18) +
+                  "</div>";
+                html +=
+                  '<div class="worker-job-id" style="font-size:0.55rem;color:#64748b;">' +
+                  f.subject +
+                  "</div>";
+                html += "</div>";
+                continue;
               }
 
-              html += '<div class="' + cls + '">';
+              var prio = active ? active.priority || 1 : 1;
+              var cardClass = "worker-card";
+              if (active) {
+                cardClass += " active";
+                if (prio === 2) cardClass += " priority-2";
+                if (prio === 3) cardClass += " priority-3";
+              }
+
+              html += '<div class="' + cardClass + '">';
               html += '<div class="worker-name">Worker #' + (i + 1) + "</div>";
               if (active) {
+                html +=
+                  '<div class="priority-badge prio-' +
+                  prio +
+                  '">' +
+                  prioNames[prio] +
+                  "</div>";
                 html += '<div class="worker-status">PROCESSING</div>';
+                html += '<div class="spinner"></div>';
                 html +=
                   '<div class="worker-job-id">' +
                   active.to.substring(0, 18) +
                   "</div>";
                 html +=
-                  '<div class="worker-job-id" style="font-size:0.55rem;color:#94a3b8;">' +
+                  '<div class="worker-job-id" style="font-size:0.55rem;color:#64748b;">' +
                   active.subject +
                   "</div>";
-                html +=
-                  '<div class="progress-bar"><div class="progress-fill" style="width:' +
-                  progress +
-                  '%;"></div></div>';
-                html +=
-                  '<div style="font-size:0.55rem;color:#64748b;margin-top:0.2rem;">' +
-                  remaining +
-                  "s remaining</div>";
               } else {
                 html += '<div class="worker-status">IDLE</div>';
                 html +=
-                  '<div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>';
+                  '<div class="spinner" style="visibility:hidden;"></div>';
               }
               html += "</div>";
             }
+
             workerGrid.innerHTML = html;
 
             // Queue bar
@@ -421,9 +585,18 @@
             } else {
               var qhtml = "";
               pending.forEach(function (j, idx) {
+                var prio = j.priority || 1;
+                var badge = "";
+                if (prio === 2)
+                  badge = '<span class="queue-badge urgent">URGENT</span>';
+                if (prio === 3)
+                  badge = '<span class="queue-badge super">SUPER</span>';
                 qhtml +=
-                  '<div class="queue-item">#' +
+                  '<div class="queue-item prio-' +
+                  prio +
+                  '">#' +
                   (idx + 1) +
+                  badge +
                   ": " +
                   j.to.substring(0, 15) +
                   ' <span style="color:#94a3b8;">(' +
@@ -436,13 +609,11 @@
             // Jobs table
             var tbody = document.getElementById("jobs-table");
             var recentJobs = jobs.slice(0, 20);
-            var newCompleted = completedJobs.length;
-            var flashNew = newCompleted > previousCompleted;
-            previousCompleted = newCompleted;
 
             tbody.innerHTML = recentJobs
               .map(function (j) {
                 var maxRetries = j.max_retries || j.MaxRetries || 3;
+                var prio = j.priority || 1;
                 var prevState = previousJobs[j.id];
                 var rowClass = "";
 
@@ -473,6 +644,11 @@
                   "</td>" +
                   "<td>" +
                   j.subject +
+                  "</td>" +
+                  '<td style="color:' +
+                  prioColors[prio] +
+                  ';font-weight:600;font-size:0.75rem;">' +
+                  prioNames[prio] +
                   "</td>" +
                   '<td><span class="badge badge-' +
                   j.status +

@@ -2,13 +2,13 @@ package api
 
 import (
 	"embed"
-
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"rjq/internal/queue"
 	"rjq/internal/storage"
+	"rjq/internal/worker"
 	"rjq/pkg/models"
 
 	"github.com/go-chi/chi/v5"
@@ -22,11 +22,12 @@ import (
 type Handler struct {
 	store storage.Storage
 	queue queue.Queue
+	pool  *worker.Pool
 }
 
-// NewHandler wires up storage and queue for the API layer.
-func NewHandler(s storage.Storage, q queue.Queue) *Handler {
-	return &Handler{store: s, queue: q}
+// NewHandler wires up storage, queue, and pool for the API layer.
+func NewHandler(s storage.Storage, q queue.Queue, p *worker.Pool) *Handler {
+	return &Handler{store: s, queue: q, pool: p}
 }
 
 var _ = embed.FS{} // ensures embed package is not removed by the compiler
@@ -54,11 +55,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 // CreateJob handles POST /jobs.
 // It validates the request, persists the job, enqueues it,
 // and returns the job ID with status pending.
+// Super-urgent jobs attempt to preempt a running normal job.
 func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		To      string `json:"to"`
-		Subject string `json:"subject"`
-		Body    string `json:"body"`
+		To       string `json:"to"`
+		Subject  string `json:"subject"`
+		Body     string `json:"body"`
+		Priority int    `json:"priority"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -71,12 +74,17 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Priority < 1 || req.Priority > 3 {
+		req.Priority = models.PriorityNormal
+	}
+
 	now := time.Now()
 	job := &models.Job{
 		ID:         uuid.New().String(),
 		ToEmail:    req.To,
 		Subject:    req.Subject,
 		Body:       req.Body,
+		Priority:   req.Priority,
 		Status:     models.StatusPending,
 		RetryCount: 0,
 		MaxRetries: 3,
@@ -90,15 +98,40 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.queue.Enqueue(job); err != nil {
-		log.WithError(err).Error("Failed to enqueue job")
-		writeError(w, http.StatusInternalServerError, "failed to enqueue job")
-		return
+	// Super-urgent jobs attempt preemption before enqueuing.
+	if job.Priority == models.PrioritySuperUrgent {
+		preemptedID, err := h.pool.Preempt(job)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"job_id": job.ID,
+				"error":  err,
+			}).Info("No preemptable job, super-urgent job queued normally")
+			// Fall through to normal enqueue.
+			if err := h.queue.Enqueue(job); err != nil {
+				log.WithError(err).Error("Failed to enqueue job")
+				writeError(w, http.StatusInternalServerError, "failed to enqueue job")
+				return
+			}
+		} else {
+			log.WithFields(log.Fields{
+				"job_id":        job.ID,
+				"preempted_job": preemptedID,
+			}).Info("Super-urgent job preempted a normal job")
+			// Job is already assigned to a worker slot via preemptQueue.
+			// Don't enqueue — it'll be picked up directly by the worker.
+		}
+	} else {
+		if err := h.queue.Enqueue(job); err != nil {
+			log.WithError(err).Error("Failed to enqueue job")
+			writeError(w, http.StatusInternalServerError, "failed to enqueue job")
+			return
+		}
 	}
 
 	log.WithFields(log.Fields{
-		"job_id": job.ID,
-		"to":     job.ToEmail,
+		"job_id":   job.ID,
+		"to":       job.ToEmail,
+		"priority": job.Priority,
 	}).Info("Job created")
 
 	w.Header().Set("Content-Type", "application/json")
@@ -131,7 +164,7 @@ func (h *Handler) GetJob(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetStats handles GET /stats.
-// Counts jobs by status directly from the database.
+// Returns pending, processing, and queued counts.
 func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 	pending, err := h.store.ListPendingJobs()
 	if err != nil {
@@ -147,7 +180,7 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// True queue depth = pending minus processing (processing jobs are included in ListPendingJobs)
+	// True queue depth = pending minus processing.
 	truePending := 0
 	for _, j := range pending {
 		if j.Status == models.StatusPending {
@@ -170,15 +203,6 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "ok",
-	})
-}
-
-// writeError is a helper to keep error responses consistent.
-func writeError(w http.ResponseWriter, code int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": msg,
 	})
 }
 
@@ -213,6 +237,7 @@ func (h *Handler) GetProcessing(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(jobs)
 }
 
+// GetPending returns all jobs waiting in the queue.
 func (h *Handler) GetPending(w http.ResponseWriter, r *http.Request) {
 	jobs, err := h.store.ListAllPendingJobs()
 	if err != nil {
@@ -225,4 +250,13 @@ func (h *Handler) GetPending(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
+}
+
+// writeError is a helper to keep error responses consistent.
+func writeError(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error": msg,
+	})
 }

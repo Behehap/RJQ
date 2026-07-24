@@ -52,6 +52,7 @@ func migrate(db *sql.DB) error {
 		to_email TEXT NOT NULL,
 		subject TEXT NOT NULL,
 		body TEXT NOT NULL,
+		priority INTEGER DEFAULT 1,
 		status TEXT NOT NULL CHECK(status IN ('pending','processing','completed','failed')),
 		retry_count INTEGER DEFAULT 0,
 		max_retries INTEGER DEFAULT 3,
@@ -67,14 +68,15 @@ func migrate(db *sql.DB) error {
 // SaveJob inserts a new job into the database.
 func (s *SQLiteStorage) SaveJob(job *models.Job) error {
 	query := `
-	INSERT INTO jobs (id, to_email, subject, body, status, retry_count, max_retries, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	INSERT INTO jobs (id, to_email, subject, body, priority, status, retry_count, max_retries, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := s.db.Exec(query,
 		job.ID,
 		job.ToEmail,
 		job.Subject,
 		job.Body,
+		job.Priority,
 		job.Status,
 		job.RetryCount,
 		job.MaxRetries,
@@ -90,7 +92,7 @@ func (s *SQLiteStorage) SaveJob(job *models.Job) error {
 // GetJob retrieves a single job by ID.
 func (s *SQLiteStorage) GetJob(id string) (*models.Job, error) {
 	query := `
-	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	SELECT id, to_email, subject, body, priority, status, retry_count, max_retries,
 	       created_at, updated_at, processed_at, error_message
 	FROM jobs WHERE id = ?`
 
@@ -103,6 +105,7 @@ func (s *SQLiteStorage) GetJob(id string) (*models.Job, error) {
 		&job.ToEmail,
 		&job.Subject,
 		&job.Body,
+		&job.Priority,
 		&job.Status,
 		&job.RetryCount,
 		&job.MaxRetries,
@@ -149,11 +152,11 @@ func (s *SQLiteStorage) UpdateJobStatus(id string, status string, errMsg string)
 // ListPendingJobs returns all jobs that haven't reached a terminal state.
 func (s *SQLiteStorage) ListPendingJobs() ([]*models.Job, error) {
 	query := `
-	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	SELECT id, to_email, subject, body, priority, status, retry_count, max_retries,
 	       created_at, updated_at, processed_at, error_message
 	FROM jobs
 	WHERE status IN ('pending', 'processing')
-	ORDER BY created_at ASC`
+	ORDER BY priority DESC, created_at ASC`
 
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -172,6 +175,7 @@ func (s *SQLiteStorage) ListPendingJobs() ([]*models.Job, error) {
 			&job.ToEmail,
 			&job.Subject,
 			&job.Body,
+			&job.Priority,
 			&job.Status,
 			&job.RetryCount,
 			&job.MaxRetries,
@@ -205,7 +209,7 @@ func (s *SQLiteStorage) Close() error {
 // ListRecentJobs returns the most recent jobs, newest first.
 func (s *SQLiteStorage) ListRecentJobs(limit int) ([]*models.Job, error) {
 	query := `
-	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	SELECT id, to_email, subject, body,priority ,status, retry_count, max_retries,
 	       created_at, updated_at, processed_at, error_message
 	FROM jobs
 	ORDER BY created_at DESC
@@ -228,6 +232,7 @@ func (s *SQLiteStorage) ListRecentJobs(limit int) ([]*models.Job, error) {
 			&job.ToEmail,
 			&job.Subject,
 			&job.Body,
+			&job.Priority,
 			&job.Status,
 			&job.RetryCount,
 			&job.MaxRetries,
@@ -256,7 +261,7 @@ func (s *SQLiteStorage) ListRecentJobs(limit int) ([]*models.Job, error) {
 // GetProcessingJobs returns all jobs currently being processed.
 func (s *SQLiteStorage) GetProcessingJobs() ([]*models.Job, error) {
 	query := `
-	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	SELECT id, to_email, subject, body,priority, status, retry_count, max_retries,
 	       created_at, updated_at, processed_at, error_message
 	FROM jobs
 	WHERE status = 'processing'
@@ -275,7 +280,7 @@ func (s *SQLiteStorage) GetProcessingJobs() ([]*models.Job, error) {
 		var errorMsg sql.NullString
 
 		err := rows.Scan(
-			&job.ID, &job.ToEmail, &job.Subject, &job.Body,
+			&job.ID, &job.ToEmail, &job.Subject, &job.Body, &job.Priority,
 			&job.Status, &job.RetryCount, &job.MaxRetries,
 			&job.CreatedAt, &job.UpdatedAt, &processedAt, &errorMsg,
 		)
@@ -295,11 +300,11 @@ func (s *SQLiteStorage) GetProcessingJobs() ([]*models.Job, error) {
 
 func (s *SQLiteStorage) ListAllPendingJobs() ([]*models.Job, error) {
 	query := `
-	SELECT id, to_email, subject, body, status, retry_count, max_retries,
+	SELECT id, to_email, subject, body,priority, status, retry_count, max_retries,
 	       created_at, updated_at, processed_at, error_message
 	FROM jobs
 	WHERE status = 'pending'
-	ORDER BY created_at ASC`
+	ORDER BY priority DESC, created_at ASC`
 
 	rows, err := s.db.Query(query)
 	if err != nil {
@@ -314,7 +319,7 @@ func (s *SQLiteStorage) ListAllPendingJobs() ([]*models.Job, error) {
 		var errorMsg sql.NullString
 
 		err := rows.Scan(
-			&job.ID, &job.ToEmail, &job.Subject, &job.Body,
+			&job.ID, &job.ToEmail, &job.Subject, &job.Body, &job.Priority,
 			&job.Status, &job.RetryCount, &job.MaxRetries,
 			&job.CreatedAt, &job.UpdatedAt, &processedAt, &errorMsg,
 		)
@@ -346,6 +351,22 @@ func (s *SQLiteStorage) UpdateJobRetry(id string, status string, retryCount int,
 	_, err := s.db.Exec(query, status, retryCount, errMsg, now, status, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to update job retry: %w", err)
+	}
+	return nil
+}
+
+// RequeueAtFront resets a preempted job back to pending without penalizing it.
+func (s *SQLiteStorage) RequeueAtFront(id string) error {
+	now := time.Now()
+	query := `
+	UPDATE jobs
+	SET status = 'pending',
+	    updated_at = ?
+	WHERE id = ?`
+
+	_, err := s.db.Exec(query, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to requeue job: %w", err)
 	}
 	return nil
 }

@@ -41,4 +41,8 @@ type Storage interface {
 
 	// UpdateJobRetry increments the retry count and updates status.
 	UpdateJobRetry(id string, status string, retryCount int, errMsg string) error
+
+	// RequeueAtFront returns a job to pending status without incrementing
+	// retry_count. Used for preempted jobs.
+	RequeueAtFront(id string) error
 }

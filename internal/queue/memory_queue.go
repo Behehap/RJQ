@@ -41,7 +41,6 @@ func (q *MemoryQueue) Enqueue(job *models.Job) error {
 	q.mu.Unlock()
 
 	q.jobs <- job
-
 	return nil
 }
 
@@ -130,4 +129,17 @@ func (q *MemoryQueue) Recover() error {
 // SetProcessing marks a job as processing in storage.
 func (q *MemoryQueue) SetProcessing(jobID string) error {
 	return q.store.UpdateJobStatus(jobID, models.StatusProcessing, "")
+}
+
+// RequeueAtFront resets a preempted job and enqueues it.
+func (q *MemoryQueue) RequeueAtFront(id string) error {
+	if err := q.store.RequeueAtFront(id); err != nil {
+		return err
+	}
+	job, err := q.store.GetJob(id)
+	if err != nil || job == nil {
+		return fmt.Errorf("requeue: job %s not found", id)
+	}
+	job.Status = models.StatusPending
+	return q.Enqueue(job)
 }
