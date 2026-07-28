@@ -143,3 +143,16 @@ func (q *MemoryQueue) RequeueAtFront(id string) error {
 	job.Status = models.StatusPending
 	return q.Enqueue(job)
 }
+
+// Retry gives a failed job more retries and re-enqueues it.
+func (q *MemoryQueue) Retry(jobID string, extraRetries int) error {
+	if err := q.store.ResetForRetry(jobID, extraRetries); err != nil {
+		return err
+	}
+	job, err := q.store.GetJob(jobID)
+	if err != nil || job == nil {
+		return fmt.Errorf("retry: job %s not found", jobID)
+	}
+	job.Status = models.StatusPending
+	return q.Enqueue(job)
+}

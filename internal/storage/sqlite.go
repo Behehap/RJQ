@@ -455,3 +455,26 @@ func (s *SQLiteStorage) ListProcessingByQueue(queueType string) ([]*models.Job, 
 	}
 	return jobs, rows.Err()
 }
+
+// ResetForRetry gives a failed job more retries and puts it back in the queue.
+func (s *SQLiteStorage) ResetForRetry(id string, extraRetries int) error {
+	now := time.Now()
+	query := `
+	UPDATE jobs
+	SET status = 'pending',
+	    retry_count = 0,
+	    max_retries = max_retries + ?,
+	    error_message = '',
+	    updated_at = ?
+	WHERE id = ? AND status = 'failed'`
+
+	result, err := s.db.Exec(query, extraRetries, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to reset job for retry: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("job not found or not in failed state")
+	}
+	return nil
+}

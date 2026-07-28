@@ -129,3 +129,8 @@ func (r *Router) Recover() error {
 	}
 	return r.RateLimited.Recover()
 }
+
+// Retry delegates to the FIFO queue's Retry.
+func (r *Router) Retry(jobID string, extraRetries int) error {
+	return r.FIFO.Retry(jobID, extraRetries)
+}

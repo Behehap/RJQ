@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/pending/fifo", h.GetPendingFIFO)
 	r.Get("/pending/priority", h.GetPendingPriority)
 	r.Get("/pending/rate-limited", h.GetPendingRateLimited)
+	r.Post("/jobs/{id}/retry", h.RetryJob)
 }
 
 // CreateJob handles POST /jobs.
@@ -292,4 +293,41 @@ func (h *Handler) GetPendingRateLimited(w http.ResponseWriter, r *http.Request) 
 		jobs = []*models.Job{}
 	}
 	json.NewEncoder(w).Encode(jobs)
+}
+
+// RetryJob handles POST /jobs/{id}/retry.
+// Gives a failed job 3 more retries and re-enqueues it.
+func (h *Handler) RetryJob(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	job, err := h.store.GetJob(id)
+	if err != nil {
+		log.WithError(err).Error("Failed to get job")
+		writeError(w, http.StatusInternalServerError, "failed to get job")
+		return
+	}
+	if job == nil {
+		writeError(w, http.StatusNotFound, "job not found")
+		return
+	}
+	if job.Status != models.StatusFailed {
+		writeError(w, http.StatusBadRequest, "only failed jobs can be retried")
+		return
+	}
+
+	if err := h.queue.Retry(id, 3); err != nil {
+		log.WithError(err).Error("Failed to retry job")
+		writeError(w, http.StatusInternalServerError, "failed to retry job")
+		return
+	}
+
+	log.WithFields(log.Fields{
+		"job_id": id,
+	}).Info("Job retried with 3 extra attempts")
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "pending",
+		"job_id": id,
+	})
 }

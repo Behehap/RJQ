@@ -38,4 +38,7 @@ type Queue interface {
 	// RequeueAtFront resets a job to pending without incrementing retry_count.
 	// Used when a job is preempted (not failed).
 	RequeueAtFront(id string) error
+
+	// Retry resets a failed job and re-enqueues it with additional retries.
+	Retry(jobID string, extraRetries int) error
 }

@@ -49,4 +49,7 @@ type Storage interface {
 
 	// ListProcessingByQueue returns processing jobs for a specific queue type.
 	ListProcessingByQueue(queueType string) ([]*models.Job, error)
+
+	// ResetForRetry resets a failed job back to pending with additional retries.
+	ResetForRetry(id string, extraRetries int) error
 }

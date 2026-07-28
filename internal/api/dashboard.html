@@ -794,11 +794,18 @@
                   "<td>" +
                   j.subject +
                   "</td>" +
-                  '<td><span class="queue-type-badge ' +
-                  qType +
+                  "<td>" +
+                  '<span class="badge badge-' +
+                  j.status +
                   '">' +
-                  (queueLabels[qType] || qType) +
-                  "</span></td>" +
+                  j.status +
+                  "</span>" +
+                  (j.status === "failed"
+                    ? " <button onclick=\"retryJob('" +
+                      j.id +
+                      '\')" style="background:#f87171;color:#fff;border:none;padding:0.15rem 0.5rem;border-radius:0.25rem;cursor:pointer;font-size:0.65rem;margin-left:0.3rem;">RETRY</button>'
+                    : "") +
+                  "</td>" +
                   '<td style="color:' +
                   prioColors[prio] +
                   ';font-weight:600;font-size:0.75rem;">' +
@@ -854,6 +861,20 @@
             "</div>";
         });
         el.innerHTML = h;
+      }
+
+      function retryJob(jobId) {
+        fetch("/jobs/" + jobId + "/retry", { method: "POST" })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            console.log("Retried job:", data);
+            fetchData();
+          })
+          .catch(function (e) {
+            console.error("Retry failed:", e);
+          });
       }
 
       fetchData();
