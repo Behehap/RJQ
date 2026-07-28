@@ -71,6 +71,118 @@
         letter-spacing: 0.05em;
       }
 
+      .queues-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .queue-column {
+        background: #1e293b;
+        border-radius: 0.5rem;
+        padding: 1rem;
+      }
+      .queue-column-header {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #334155;
+      }
+      .queue-column-header.fifo {
+        color: #facc15;
+      }
+      .queue-column-header.priority {
+        color: #fb923c;
+      }
+      .queue-column-header.rate {
+        color: #38bdf8;
+      }
+      .queue-mini-item {
+        padding: 0.3rem 0.5rem;
+        border-radius: 0.2rem;
+        font-size: 0.7rem;
+        font-family: monospace;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .queue-mini-item.prio-1 {
+        background: #334155;
+        color: #facc15;
+        border-left: 2px solid #facc15;
+      }
+      .queue-mini-item.prio-2 {
+        background: #3b2200;
+        color: #fb923c;
+        border-left: 2px solid #fb923c;
+      }
+      .queue-mini-item.prio-3 {
+        background: #3b0000;
+        color: #f87171;
+        border-left: 2px solid #f87171;
+        animation: urgentPulse 1s infinite;
+      }
+      @keyframes urgentPulse {
+        0%,
+        100% {
+          box-shadow: 0 0 4px rgba(248, 113, 113, 0.3);
+        }
+        50% {
+          box-shadow: 0 0 12px rgba(248, 113, 113, 0.7);
+        }
+      }
+      .queue-empty {
+        color: #64748b;
+        font-size: 0.7rem;
+        font-style: italic;
+      }
+      .queue-count {
+        font-size: 0.65rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+      }
+      .queue-badge {
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.15rem;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .queue-badge.urgent {
+        background: #fb923c;
+        color: #0f172a;
+      }
+      .queue-badge.super {
+        background: #f87171;
+        color: #0f172a;
+        animation: urgentPulse 1s infinite;
+      }
+
+      .tokens-display {
+        font-size: 0.6rem;
+        color: #38bdf8;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #334155;
+      }
+      .tokens-bar {
+        width: 100%;
+        height: 0.3rem;
+        background: #334155;
+        border-radius: 0.15rem;
+        margin-top: 0.25rem;
+        overflow: hidden;
+      }
+      .tokens-fill {
+        height: 100%;
+        background: #38bdf8;
+        border-radius: 0.15rem;
+        transition: width 1s linear;
+      }
+
       .worker-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -133,7 +245,6 @@
       .worker-card.active.priority-3 .worker-status {
         color: #f87171;
       }
-
       .priority-badge {
         display: inline-block;
         padding: 0.1rem 0.4rem;
@@ -156,7 +267,27 @@
         background: #f87171;
         color: #0f172a;
       }
-
+      .queue-type-badge {
+        display: inline-block;
+        padding: 0.1rem 0.3rem;
+        border-radius: 0.15rem;
+        font-size: 0.5rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+      }
+      .queue-type-badge.fifo {
+        background: #334155;
+        color: #facc15;
+      }
+      .queue-type-badge.priority {
+        background: #334155;
+        color: #fb923c;
+      }
+      .queue-type-badge.rate-limited {
+        background: #334155;
+        color: #38bdf8;
+      }
       .spinner {
         width: 2rem;
         height: 2rem;
@@ -182,94 +313,16 @@
           transform: rotate(360deg);
         }
       }
-
       .result-icon {
         font-size: 1.5rem;
         margin: 0.5rem auto;
       }
-
       .worker-job-id {
         font-size: 0.6rem;
         color: #94a3b8;
         font-family: monospace;
         margin-top: 0.35rem;
         word-break: break-all;
-      }
-
-      .queue-bar {
-        background: #1e293b;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 2rem;
-        min-height: 3rem;
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-      .queue-item {
-        padding: 0.35rem 0.75rem;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-        font-family: monospace;
-        animation: fadeIn 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-      }
-      .queue-item.prio-1 {
-        background: #334155;
-        color: #facc15;
-        border-left: 3px solid #facc15;
-      }
-      .queue-item.prio-2 {
-        background: #3b2200;
-        color: #fb923c;
-        border-left: 3px solid #fb923c;
-      }
-      .queue-item.prio-3 {
-        background: #3b0000;
-        color: #f87171;
-        border-left: 3px solid #f87171;
-        animation:
-          fadeIn 0.3s ease,
-          urgentPulse 1s infinite;
-      }
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: scale(0.9);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
-      }
-      @keyframes urgentPulse {
-        0%,
-        100% {
-          box-shadow: 0 0 4px rgba(248, 113, 113, 0.3);
-        }
-        50% {
-          box-shadow: 0 0 12px rgba(248, 113, 113, 0.7);
-        }
-      }
-
-      .queue-badge {
-        padding: 0.1rem 0.35rem;
-        border-radius: 0.15rem;
-        font-size: 0.55rem;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .queue-badge.urgent {
-        background: #fb923c;
-        color: #0f172a;
-      }
-      .queue-badge.super {
-        background: #f87171;
-        color: #0f172a;
-        animation: urgentPulse 1s infinite;
       }
 
       table {
@@ -350,11 +403,48 @@
         margin-top: 1rem;
         text-align: center;
       }
+
+      .worker-card {
+        transition:
+          border 0.3s ease,
+          background 0.3s ease,
+          box-shadow 0.3s ease;
+      }
+      @keyframes flashFade {
+        0% {
+          background: #14532d;
+          border-color: #4ade80;
+        }
+        70% {
+          background: #14532d;
+          border-color: #4ade80;
+        }
+        100% {
+          background: #1e293b;
+          border-color: transparent;
+        }
+      }
+      @keyframes flashFadeRed {
+        0% {
+          background: #7f1d1d;
+          border-color: #f87171;
+        }
+        70% {
+          background: #7f1d1d;
+          border-color: #f87171;
+        }
+        100% {
+          background: #1e293b;
+          border-color: transparent;
+        }
+      }
     </style>
   </head>
   <body>
     <h1>RJQ Dashboard</h1>
-    <div class="subtitle">Reliable Job Queue — real-time monitoring</div>
+    <div class="subtitle">
+      Multi-Queue System — FIFO · Priority · Rate-Limited
+    </div>
 
     <div class="stats">
       <div class="stat pending">
@@ -375,14 +465,29 @@
       </div>
     </div>
 
+    <div class="section-title">Queues</div>
+    <div class="queues-grid">
+      <div class="queue-column">
+        <div class="queue-column-header fifo">FIFO</div>
+        <div class="queue-count" id="count-fifo">0 jobs</div>
+        <div id="queue-fifo"><span class="queue-empty">Empty</span></div>
+      </div>
+      <div class="queue-column">
+        <div class="queue-column-header priority">Priority</div>
+        <div class="queue-count" id="count-priority">0 jobs</div>
+        <div id="queue-priority"><span class="queue-empty">Empty</span></div>
+      </div>
+      <div class="queue-column">
+        <div class="queue-column-header rate">Rate-Limited</div>
+        <div class="queue-count" id="count-rate">0 jobs</div>
+        <div id="queue-rate"><span class="queue-empty">Empty</span></div>
+        <div class="tokens-display" id="tokens-display"></div>
+      </div>
+    </div>
+
     <div class="section-title">Workers</div>
     <div class="worker-grid" id="worker-grid">
       <span style="color: #64748b; font-size: 0.8rem">Loading...</span>
-    </div>
-
-    <div class="section-title">Queue</div>
-    <div class="queue-bar" id="queue-bar">
-      <span style="color: #64748b; font-size: 0.8rem">No jobs in queue</span>
     </div>
 
     <div class="section-title">Recent Jobs</div>
@@ -392,6 +497,7 @@
           <th>ID</th>
           <th>To</th>
           <th>Subject</th>
+          <th>Queue</th>
           <th>Priority</th>
           <th>Status</th>
           <th>Retries</th>
@@ -410,6 +516,16 @@
 
       var prioNames = ["", "NORMAL", "URGENT", "SUPER"];
       var prioColors = ["", "#94a3b8", "#fb923c", "#f87171"];
+      var queueLabels = {
+        fifo: "FIFO",
+        priority: "PRI",
+        "rate-limited": "RATE",
+      };
+      var queueColors = {
+        fifo: "#facc15",
+        priority: "#fb923c",
+        "rate-limited": "#38bdf8",
+      };
 
       function timeAgo(dateStr) {
         var now = new Date();
@@ -461,6 +577,47 @@
               completedCount;
             document.getElementById("stat-failed").textContent = failedCount;
 
+            // Split pending jobs by queue type
+            var fifoJobs = pending.filter(function (j) {
+              return (j.queue || "fifo") === "fifo";
+            });
+            var priorityJobs = pending.filter(function (j) {
+              return j.queue === "priority";
+            });
+            var rateJobs = pending.filter(function (j) {
+              return j.queue === "rate-limited";
+            });
+
+            // Update queue columns
+            renderMiniQueue("queue-fifo", fifoJobs);
+            renderMiniQueue("queue-priority", priorityJobs);
+            renderMiniQueue("queue-rate", rateJobs);
+            document.getElementById("count-fifo").textContent =
+              fifoJobs.length + " jobs";
+            document.getElementById("count-priority").textContent =
+              priorityJobs.length + " jobs";
+            document.getElementById("count-rate").textContent =
+              rateJobs.length + " jobs";
+
+            // Token display
+            var tokensDisplay = document.getElementById("tokens-display");
+            if (rateJobs.length > 0 || stats.rate_tokens !== undefined) {
+              var tokens = stats.rate_tokens || 0;
+              var maxTokens = 10;
+              var pct = Math.min(100, (tokens / maxTokens) * 100);
+              tokensDisplay.innerHTML =
+                "Tokens: " +
+                tokens +
+                "/" +
+                maxTokens +
+                '<div class="tokens-bar"><div class="tokens-fill" style="width:' +
+                pct +
+                '%;"></div></div>';
+            } else {
+              tokensDisplay.innerHTML = "";
+            }
+
+            // Worker state
             var currentProcessingIds = [];
             for (var i = 0; i < 5; i++) {
               currentProcessingIds.push(
@@ -471,9 +628,7 @@
             for (var i = 0; i < 5; i++) {
               var prevId = previousProcessingIds[i];
               var currId = currentProcessingIds[i];
-
               if (workerFlash[i] !== null) continue;
-
               if (prevId && prevId !== currId) {
                 var finishedJob = currentJobs[prevId];
                 if (
@@ -495,143 +650,137 @@
                 }
               }
             }
-
             previousProcessingIds = currentProcessingIds;
 
-            // Worker grid
+            // Worker grid — update cards in place, no rebuilding
             var workerGrid = document.getElementById("worker-grid");
-            var html = "";
+
+            if (
+              workerGrid.children.length < 5 ||
+              !document.getElementById("worker-0")
+            ) {
+              var initialHtml = "";
+              for (var i = 0; i < 5; i++) {
+                initialHtml +=
+                  '<div class="worker-card" id="worker-' +
+                  i +
+                  '">' +
+                  '<div class="worker-name">Worker #' +
+                  (i + 1) +
+                  "</div>" +
+                  '<div class="worker-content"></div>' +
+                  "</div>";
+              }
+              workerGrid.innerHTML = initialHtml;
+            }
 
             for (var i = 0; i < 5; i++) {
               var active = processing[i] || null;
+              var card = document.getElementById("worker-" + i);
+              if (!card) continue;
+              var content = card.querySelector(".worker-content");
+              if (!content) continue;
+
+              // Only update if something changed
+              var newState = active
+                ? "active-" + active.id + "-" + (active.priority || 1)
+                : workerFlash[i]
+                  ? "flash-" + workerFlash[i].status
+                  : "idle";
+              if (card.dataset.state === newState) continue;
+              card.dataset.state = newState;
+
+              card.className = "worker-card";
+              card.style.transition =
+                "border 0.3s ease, background 0.3s ease, box-shadow 0.3s ease";
 
               if (workerFlash[i] !== null) {
                 var f = workerFlash[i];
-                var cls =
-                  f.status === "completed" ? "completed-flash" : "failed-flash";
+                if (f.status === "completed") {
+                  card.classList.add("completed-flash");
+                  card.style.animation = "flashFade 2.5s ease forwards";
+                } else {
+                  card.classList.add("failed-flash");
+                  card.style.animation = "flashFadeRed 2.5s ease forwards";
+                }
                 var icon = f.status === "completed" ? "&#10003;" : "&#10007;";
                 var color = f.status === "completed" ? "#4ade80" : "#f87171";
                 var label = f.status === "completed" ? "COMPLETED" : "FAILED";
-
-                html += '<div class="worker-card ' + cls + '">';
-                html +=
-                  '<div class="worker-name">Worker #' + (i + 1) + "</div>";
-                html +=
+                content.innerHTML =
                   '<div class="result-icon" style="color:' +
                   color +
                   ';">' +
                   icon +
-                  "</div>";
-                html +=
+                  "</div>" +
                   '<div class="worker-status" style="color:' +
                   color +
                   ';">' +
                   label +
-                  "</div>";
-                html +=
+                  "</div>" +
                   '<div class="worker-job-id">' +
                   f.to.substring(0, 18) +
-                  "</div>";
-                html +=
+                  "</div>" +
                   '<div class="worker-job-id" style="font-size:0.55rem;color:#64748b;">' +
                   f.subject +
                   "</div>";
-                html += "</div>";
                 continue;
               }
 
-              var prio = active ? active.priority || 1 : 1;
-              var cardClass = "worker-card";
-              if (active) {
-                cardClass += " active";
-                if (prio === 2) cardClass += " priority-2";
-                if (prio === 3) cardClass += " priority-3";
-              }
+              card.style.animation = "";
 
-              html += '<div class="' + cardClass + '">';
-              html += '<div class="worker-name">Worker #' + (i + 1) + "</div>";
               if (active) {
-                html +=
+                var prio = active.priority || 1;
+                var qType = active.queue || "fifo";
+                card.classList.add("active");
+                if (prio === 2) card.classList.add("priority-2");
+                if (prio === 3) card.classList.add("priority-3");
+                content.innerHTML =
+                  '<div class="queue-type-badge ' +
+                  qType +
+                  '">' +
+                  (queueLabels[qType] || qType) +
+                  "</div>" +
                   '<div class="priority-badge prio-' +
                   prio +
                   '">' +
                   prioNames[prio] +
-                  "</div>";
-                html += '<div class="worker-status">PROCESSING</div>';
-                html += '<div class="spinner"></div>';
-                html +=
+                  "</div>" +
+                  '<div class="worker-status">PROCESSING</div>' +
+                  '<div class="spinner"></div>' +
                   '<div class="worker-job-id">' +
                   active.to.substring(0, 18) +
-                  "</div>";
-                html +=
+                  "</div>" +
                   '<div class="worker-job-id" style="font-size:0.55rem;color:#64748b;">' +
                   active.subject +
                   "</div>";
               } else {
-                html += '<div class="worker-status">IDLE</div>';
-                html +=
+                content.innerHTML =
+                  '<div class="worker-status">IDLE</div>' +
                   '<div class="spinner" style="visibility:hidden;"></div>';
               }
-              html += "</div>";
             }
-
-            workerGrid.innerHTML = html;
-
-            // Queue bar
-            var queueBar = document.getElementById("queue-bar");
-            if (pending.length === 0) {
-              queueBar.innerHTML =
-                '<span style="color:#64748b;font-size:0.8rem;">Queue empty</span>';
-            } else {
-              var qhtml = "";
-              pending.forEach(function (j, idx) {
-                var prio = j.priority || 1;
-                var badge = "";
-                if (prio === 2)
-                  badge = '<span class="queue-badge urgent">URGENT</span>';
-                if (prio === 3)
-                  badge = '<span class="queue-badge super">SUPER</span>';
-                qhtml +=
-                  '<div class="queue-item prio-' +
-                  prio +
-                  '">#' +
-                  (idx + 1) +
-                  badge +
-                  ": " +
-                  j.to.substring(0, 15) +
-                  ' <span style="color:#94a3b8;">(' +
-                  j.subject +
-                  ")</span></div>";
-              });
-              queueBar.innerHTML = qhtml;
-            }
-
             // Jobs table
             var tbody = document.getElementById("jobs-table");
             var recentJobs = jobs.slice(0, 20);
-
             tbody.innerHTML = recentJobs
               .map(function (j) {
                 var maxRetries = j.max_retries || j.MaxRetries || 3;
                 var prio = j.priority || 1;
+                var qType = j.queue || "fifo";
                 var prevState = previousJobs[j.id];
                 var rowClass = "";
-
                 if (
                   j.status === "completed" &&
                   prevState &&
                   prevState.status !== "completed"
-                ) {
+                )
                   rowClass = "row-completed";
-                }
                 if (
                   j.status === "failed" &&
                   prevState &&
                   prevState.status !== "failed"
-                ) {
+                )
                   rowClass = "row-failed";
-                }
-
                 return (
                   '<tr class="' +
                   rowClass +
@@ -645,6 +794,11 @@
                   "<td>" +
                   j.subject +
                   "</td>" +
+                  '<td><span class="queue-type-badge ' +
+                  qType +
+                  '">' +
+                  (queueLabels[qType] || qType) +
+                  "</span></td>" +
                   '<td style="color:' +
                   prioColors[prio] +
                   ';font-weight:600;font-size:0.75rem;">' +
@@ -673,6 +827,33 @@
           .catch(function (e) {
             console.error("Dashboard error:", e);
           });
+      }
+
+      function renderMiniQueue(elementId, jobs) {
+        var el = document.getElementById(elementId);
+        if (jobs.length === 0) {
+          el.innerHTML = '<span class="queue-empty">Empty</span>';
+          return;
+        }
+        var h = "";
+        jobs.forEach(function (j, idx) {
+          var prio = j.priority || 1;
+          var badge = "";
+          if (prio === 2)
+            badge = '<span class="queue-badge urgent">URGENT</span>';
+          if (prio === 3)
+            badge = '<span class="queue-badge super">SUPER</span>';
+          h +=
+            '<div class="queue-mini-item prio-' +
+            prio +
+            '">#' +
+            (idx + 1) +
+            badge +
+            ": " +
+            j.to.substring(0, 15) +
+            "</div>";
+        });
+        el.innerHTML = h;
       }
 
       fetchData();

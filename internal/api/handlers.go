@@ -50,6 +50,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/dashboard", h.Dashboard)
 	r.Get("/processing", h.GetProcessing)
 	r.Get("/pending", h.GetPending)
+	r.Get("/pending/fifo", h.GetPendingFIFO)
+	r.Get("/pending/priority", h.GetPendingPriority)
+	r.Get("/pending/rate-limited", h.GetPendingRateLimited)
 }
 
 // CreateJob handles POST /jobs.
@@ -61,6 +64,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		To       string `json:"to"`
 		Subject  string `json:"subject"`
 		Body     string `json:"body"`
+		Queue    string `json:"queue"`
 		Priority int    `json:"priority"`
 	}
 
@@ -78,12 +82,17 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		req.Priority = models.PriorityNormal
 	}
 
+	if req.Queue == "" {
+		req.Queue = models.QueueTypeFIFO
+	}
+
 	now := time.Now()
 	job := &models.Job{
 		ID:         uuid.New().String(),
 		ToEmail:    req.To,
 		Subject:    req.Subject,
 		Body:       req.Body,
+		QueueType:  req.Queue,
 		Priority:   req.Priority,
 		Status:     models.StatusPending,
 		RetryCount: 0,
@@ -259,4 +268,28 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"error": msg,
 	})
+}
+
+func (h *Handler) GetPendingFIFO(w http.ResponseWriter, r *http.Request) {
+	jobs, _ := h.store.ListPendingByQueue(models.QueueTypeFIFO)
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
+	json.NewEncoder(w).Encode(jobs)
+}
+
+func (h *Handler) GetPendingPriority(w http.ResponseWriter, r *http.Request) {
+	jobs, _ := h.store.ListPendingByQueue(models.QueueTypePriority)
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
+	json.NewEncoder(w).Encode(jobs)
+}
+
+func (h *Handler) GetPendingRateLimited(w http.ResponseWriter, r *http.Request) {
+	jobs, _ := h.store.ListPendingByQueue(models.QueueTypeRateLimited)
+	if jobs == nil {
+		jobs = []*models.Job{}
+	}
+	json.NewEncoder(w).Encode(jobs)
 }

@@ -11,11 +11,12 @@ import (
 // Config is the top-level configuration struct.
 // It maps directly to the structure of config.yaml.
 type Config struct {
-	Server  ServerConfig
-	Queue   QueueConfig
-	Email   EmailConfig
-	Retry   RetryConfig
-	Timeout TimeoutConfig
+	Server    ServerConfig
+	Queue     QueueConfig
+	Email     EmailConfig
+	Retry     RetryConfig
+	Timeout   TimeoutConfig
+	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
 }
 
 type ServerConfig struct {
@@ -46,6 +47,12 @@ type RetryConfig struct {
 // TimeoutConfig holds per-job timeout settings.
 type TimeoutConfig struct {
 	JobSeconds int `mapstructure:"job_seconds"`
+}
+
+// RateLimitConfig holds Rate limit policy.
+type RateLimitConfig struct {
+	EmailsPerMinute int `mapstructure:"emails_per_minute"`
+	Burst           int `mapstructure:"burst"`
 }
 
 // LoadConfig reads the YAML config file and applies environment variable overrides.

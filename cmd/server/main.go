@@ -34,10 +34,19 @@ func main() {
 	}
 	defer store.Close()
 
-	// Initialize queue and recover pending jobs from storage.
-	q := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
-	if err := q.Recover(); err != nil {
-		log.WithError(err).Fatal("Failed to recover jobs from storage")
+	// ── MULTI-QUEUE SETUP<div class="section-title">Queue</div>
+	// Create all three queue instances.
+	fifoQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
+	priorityQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
+	rateLimitedQueue := queue.NewRateLimitedQueue(store, cfg.Queue.Workers*10,
+		cfg.RateLimit.EmailsPerMinute, cfg.RateLimit.Burst)
+
+	// Wrap them in a router that workers will pull from.
+	router := queue.NewRouter(fifoQueue, priorityQueue, rateLimitedQueue)
+
+	// Recover pending jobs for all queues on startup.
+	if err := router.Recover(); err != nil {
+		log.WithError(err).Fatal("Failed to recover queues")
 	}
 
 	// Initialize worker pool.
@@ -49,7 +58,7 @@ func main() {
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.DemoDelaySec)*time.Second,
 	)
-	pool := worker.NewPool(q, emailWorker, cfg.Queue.Workers,
+	pool := worker.NewPool(router, emailWorker, cfg.Queue.Workers,
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.CooldownSec)*time.Second,
 	)
@@ -61,7 +70,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	handler := api.NewHandler(store, q, pool)
+	handler := api.NewHandler(store, router, pool)
 	handler.RegisterRoutes(r)
 
 	// Start HTTP server.
@@ -92,7 +101,7 @@ func main() {
 	}
 
 	// Stop the queue and wait for workers to finish.
-	q.Close()
+	router.Close()
 	pool.Wait()
 
 	log.Info("Server stopped")

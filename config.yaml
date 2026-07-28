@@ -3,8 +3,8 @@ server:
 
 queue:
   workers: 5
-  demo_delay_seconds: 5
-  cooldown_seconds: 1
+  demo_delay_seconds: 10
+  cooldown_seconds: 0
 
 email:
   smtp_host: "smtp.gmail.com"
@@ -18,3 +18,7 @@ retry:
 
 timeout:
   job_seconds: 30
+
+rate_limit:
+  emails_per_minute: 3
+  burst: 1

@@ -1,13 +1,12 @@
 // Package storage defines the persistence layer for jobs.
-
+// The Storage interface allows swapping backends (SQLite, Postgres, etc.)
+// without changing any consuming code.
 package storage
 
-import (
-	"rjq/pkg/models"
-)
+import "rjq/pkg/models"
 
-// storage is the data access layer for jobs.
-// ALl implementations must be safe for concurrent use.
+// Storage is the data access layer for jobs.
+// All implementations must be safe for concurrent use.
 type Storage interface {
 	// SaveJob persists a new job. Returns an error if a job with the
 	// same ID already exists.
@@ -18,16 +17,15 @@ type Storage interface {
 	GetJob(id string) (*models.Job, error)
 
 	// UpdateJobStatus changes the status of a job and optionally sets
-	// the error message. It also bumps UpdateAt and, if the status is
+	// the error message. It also bumps UpdatedAt and, if the status is
 	// "completed" or "failed", sets ProcessedAt.
-
 	UpdateJobStatus(id string, status string, errMsg string) error
 
 	// ListPendingJobs returns all jobs with status "pending" or
-	// "Proccessong". Used for recovery on restart.
+	// "processing". Used for recovery on restart.
 	ListPendingJobs() ([]*models.Job, error)
 
-	// Close releases ant resources held by the storage backend.
+	// Close releases any resources held by the storage backend.
 	Close() error
 
 	// ListRecentJobs returns the most recent jobs, newest first.
@@ -45,4 +43,10 @@ type Storage interface {
 	// RequeueAtFront returns a job to pending status without incrementing
 	// retry_count. Used for preempted jobs.
 	RequeueAtFront(id string) error
+
+	// ListPendingByQueue returns pending jobs for a specific queue type.
+	ListPendingByQueue(queueType string) ([]*models.Job, error)
+
+	// ListProcessingByQueue returns processing jobs for a specific queue type.
+	ListProcessingByQueue(queueType string) ([]*models.Job, error)
 }
