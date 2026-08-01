@@ -194,7 +194,10 @@
         border-radius: 0.5rem;
         padding: 1.5rem 1rem;
         text-align: center;
-        transition: all 0.3s ease;
+        transition:
+          border 0.3s ease,
+          background 0.3s ease,
+          box-shadow 0.3s ease;
       }
       .worker-card.active {
         border: 1px solid #38bdf8;
@@ -209,11 +212,9 @@
       }
       .worker-card.completed-flash {
         border: 1px solid #4ade80;
-        background: #14532d;
       }
       .worker-card.failed-flash {
         border: 1px solid #f87171;
-        background: #7f1d1d;
       }
       .worker-name {
         font-size: 0.75rem;
@@ -313,103 +314,6 @@
           transform: rotate(360deg);
         }
       }
-      .result-icon {
-        font-size: 1.5rem;
-        margin: 0.5rem auto;
-      }
-      .worker-job-id {
-        font-size: 0.6rem;
-        color: #94a3b8;
-        font-family: monospace;
-        margin-top: 0.35rem;
-        word-break: break-all;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        background: #1e293b;
-        border-radius: 0.5rem;
-        overflow: hidden;
-      }
-      th,
-      td {
-        padding: 0.75rem 1rem;
-        text-align: left;
-        font-size: 0.8rem;
-      }
-      th {
-        background: #334155;
-        color: #94a3b8;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      td {
-        border-bottom: 1px solid #334155;
-      }
-      tr:last-child td {
-        border-bottom: none;
-      }
-      .badge {
-        padding: 0.15rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-      .badge-pending {
-        background: #facc15;
-        color: #0f172a;
-      }
-      .badge-processing {
-        background: #38bdf8;
-        color: #0f172a;
-      }
-      .badge-completed {
-        background: #4ade80;
-        color: #0f172a;
-      }
-      .badge-failed {
-        background: #f87171;
-        color: #0f172a;
-      }
-      tr.row-completed {
-        animation: rowFlash 0.5s ease;
-      }
-      @keyframes rowFlash {
-        0% {
-          background: #14532d;
-        }
-        100% {
-          background: transparent;
-        }
-      }
-      tr.row-failed {
-        animation: rowFlashRed 0.5s ease;
-      }
-      @keyframes rowFlashRed {
-        0% {
-          background: #7f1d1d;
-        }
-        100% {
-          background: transparent;
-        }
-      }
-
-      .refresh {
-        color: #64748b;
-        font-size: 0.7rem;
-        margin-top: 1rem;
-        text-align: center;
-      }
-
-      .worker-card {
-        transition:
-          border 0.3s ease,
-          background 0.3s ease,
-          box-shadow 0.3s ease;
-      }
       @keyframes flashFade {
         0% {
           background: #14532d;
@@ -437,6 +341,126 @@
           background: #1e293b;
           border-color: transparent;
         }
+      }
+      .result-icon {
+        font-size: 1.5rem;
+        margin: 0.5rem auto;
+      }
+      .worker-job-id {
+        font-size: 0.6rem;
+        color: #94a3b8;
+        font-family: monospace;
+        margin-top: 0.35rem;
+        word-break: break-all;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #1e293b;
+        border-radius: 0.5rem;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 0.6rem 0.75rem;
+        text-align: left;
+        font-size: 0.75rem;
+      }
+      th {
+        background: #334155;
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.65rem;
+      }
+      td {
+        border-bottom: 1px solid #1e293b;
+      }
+      tr {
+        transition: background 0.3s ease;
+      }
+      tr:hover {
+        background: #1e293b;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .badge {
+        padding: 0.12rem 0.4rem;
+        border-radius: 0.2rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        display: inline-block;
+      }
+      .badge-pending {
+        background: #facc15;
+        color: #0f172a;
+      }
+      .badge-processing {
+        background: #38bdf8;
+        color: #0f172a;
+      }
+      .badge-completed {
+        background: #4ade80;
+        color: #0f172a;
+      }
+      .badge-failed {
+        background: #f87171;
+        color: #fff;
+      }
+      tr.row-completed {
+        animation: rowFlash 0.5s ease;
+      }
+      @keyframes rowFlash {
+        0% {
+          background: #14532d;
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      tr.row-failed {
+        animation: rowFlashRed 0.5s ease;
+      }
+      @keyframes rowFlashRed {
+        0% {
+          background: #7f1d1d;
+        }
+        100% {
+          background: transparent;
+        }
+      }
+
+      .retry-btn {
+        background: transparent;
+        color: #f87171;
+        border: 1px solid #f87171;
+        padding: 0.1rem 0.4rem;
+        border-radius: 0.2rem;
+        cursor: pointer;
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        transition: all 0.2s ease;
+        vertical-align: middle;
+      }
+      .retry-btn:hover {
+        background: #f87171;
+        color: #fff;
+      }
+      .actions-cell {
+        white-space: nowrap;
+      }
+
+      .refresh {
+        color: #64748b;
+        font-size: 0.7rem;
+        margin-top: 1rem;
+        text-align: center;
       }
     </style>
   </head>
@@ -502,6 +526,7 @@
           <th>Status</th>
           <th>Retries</th>
           <th>Created</th>
+          <th></th>
         </tr>
       </thead>
       <tbody id="jobs-table"></tbody>
@@ -521,11 +546,6 @@
         priority: "PRI",
         "rate-limited": "RATE",
       };
-      var queueColors = {
-        fifo: "#facc15",
-        priority: "#fb923c",
-        "rate-limited": "#38bdf8",
-      };
 
       function timeAgo(dateStr) {
         var now = new Date();
@@ -535,6 +555,19 @@
         if (diff < 60) return diff + "s ago";
         if (diff < 3600) return Math.floor(diff / 60) + "m ago";
         return Math.floor(diff / 3600) + "h ago";
+      }
+
+      function retryJob(jobId) {
+        fetch("/jobs/" + jobId + "/retry", { method: "POST" })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function () {
+            fetchData();
+          })
+          .catch(function (e) {
+            console.error("Retry failed:", e);
+          });
       }
 
       function fetchData() {
@@ -577,7 +610,6 @@
               completedCount;
             document.getElementById("stat-failed").textContent = failedCount;
 
-            // Split pending jobs by queue type
             var fifoJobs = pending.filter(function (j) {
               return (j.queue || "fifo") === "fifo";
             });
@@ -588,7 +620,6 @@
               return j.queue === "rate-limited";
             });
 
-            // Update queue columns
             renderMiniQueue("queue-fifo", fifoJobs);
             renderMiniQueue("queue-priority", priorityJobs);
             renderMiniQueue("queue-rate", rateJobs);
@@ -599,7 +630,6 @@
             document.getElementById("count-rate").textContent =
               rateJobs.length + " jobs";
 
-            // Token display
             var tokensDisplay = document.getElementById("tokens-display");
             if (rateJobs.length > 0 || stats.rate_tokens !== undefined) {
               var tokens = stats.rate_tokens || 0;
@@ -617,7 +647,6 @@
               tokensDisplay.innerHTML = "";
             }
 
-            // Worker state
             var currentProcessingIds = [];
             for (var i = 0; i < 5; i++) {
               currentProcessingIds.push(
@@ -645,16 +674,15 @@
                   (function (idx) {
                     setTimeout(function () {
                       workerFlash[idx] = null;
-                    }, 3000);
+                    }, 2500);
                   })(i);
                 }
               }
             }
             previousProcessingIds = currentProcessingIds;
 
-            // Worker grid — update cards in place, no rebuilding
+            // Worker grid — update cards in place
             var workerGrid = document.getElementById("worker-grid");
-
             if (
               workerGrid.children.length < 5 ||
               !document.getElementById("worker-0")
@@ -668,8 +696,7 @@
                   '<div class="worker-name">Worker #' +
                   (i + 1) +
                   "</div>" +
-                  '<div class="worker-content"></div>' +
-                  "</div>";
+                  '<div class="worker-content"></div></div>';
               }
               workerGrid.innerHTML = initialHtml;
             }
@@ -681,7 +708,6 @@
               var content = card.querySelector(".worker-content");
               if (!content) continue;
 
-              // Only update if something changed
               var newState = active
                 ? "active-" + active.id + "-" + (active.priority || 1)
                 : workerFlash[i]
@@ -691,18 +717,15 @@
               card.dataset.state = newState;
 
               card.className = "worker-card";
-              card.style.transition =
-                "border 0.3s ease, background 0.3s ease, box-shadow 0.3s ease";
 
               if (workerFlash[i] !== null) {
                 var f = workerFlash[i];
-                if (f.status === "completed") {
-                  card.classList.add("completed-flash");
-                  card.style.animation = "flashFade 2.5s ease forwards";
-                } else {
-                  card.classList.add("failed-flash");
-                  card.style.animation = "flashFadeRed 2.5s ease forwards";
-                }
+                card.classList.add(
+                  f.status === "completed" ? "completed-flash" : "failed-flash",
+                );
+                card.style.animation =
+                  (f.status === "completed" ? "flashFade" : "flashFadeRed") +
+                  " 2.5s ease forwards";
                 var icon = f.status === "completed" ? "&#10003;" : "&#10007;";
                 var color = f.status === "completed" ? "#4ade80" : "#f87171";
                 var label = f.status === "completed" ? "COMPLETED" : "FAILED";
@@ -759,6 +782,7 @@
                   '<div class="spinner" style="visibility:hidden;"></div>';
               }
             }
+
             // Jobs table
             var tbody = document.getElementById("jobs-table");
             var recentJobs = jobs.slice(0, 20);
@@ -781,20 +805,31 @@
                   prevState.status !== "failed"
                 )
                   rowClass = "row-failed";
+
                 return (
                   '<tr class="' +
                   rowClass +
                   '">' +
                   '<td style="font-family:monospace;font-size:0.7rem;">' +
-                  j.id.substring(0, 12) +
+                  j.id.substring(0, 10) +
                   "...</td>" +
                   "<td>" +
-                  j.to +
+                  j.to.substring(0, 20) +
                   "</td>" +
                   "<td>" +
-                  j.subject +
+                  j.subject.substring(0, 25) +
                   "</td>" +
-                  "<td>" +
+                  '<td><span class="queue-type-badge ' +
+                  qType +
+                  '">' +
+                  (queueLabels[qType] || qType) +
+                  "</span></td>" +
+                  '<td style="color:' +
+                  prioColors[prio] +
+                  ';font-weight:600;font-size:0.7rem;">' +
+                  prioNames[prio] +
+                  "</td>" +
+                  '<td class="actions-cell">' +
                   '<span class="badge badge-' +
                   j.status +
                   '">' +
@@ -803,27 +838,18 @@
                   (j.status === "failed"
                     ? " <button onclick=\"retryJob('" +
                       j.id +
-                      '\')" style="background:#f87171;color:#fff;border:none;padding:0.15rem 0.5rem;border-radius:0.25rem;cursor:pointer;font-size:0.65rem;margin-left:0.3rem;">RETRY</button>'
+                      '\')" class="retry-btn">↻ Retry</button>'
                     : "") +
                   "</td>" +
-                  '<td style="color:' +
-                  prioColors[prio] +
-                  ';font-weight:600;font-size:0.75rem;">' +
-                  prioNames[prio] +
-                  "</td>" +
-                  '<td><span class="badge badge-' +
-                  j.status +
-                  '">' +
-                  j.status +
-                  "</span></td>" +
                   "<td>" +
                   j.retry_count +
                   "/" +
                   maxRetries +
                   "</td>" +
-                  '<td style="font-size:0.7rem;color:#94a3b8;">' +
+                  '<td style="font-size:0.65rem;color:#94a3b8;">' +
                   timeAgo(j.created_at) +
                   "</td>" +
+                  "<td></td>" +
                   "</tr>"
                 );
               })
@@ -861,20 +887,6 @@
             "</div>";
         });
         el.innerHTML = h;
-      }
-
-      function retryJob(jobId) {
-        fetch("/jobs/" + jobId + "/retry", { method: "POST" })
-          .then(function (r) {
-            return r.json();
-          })
-          .then(function (data) {
-            console.log("Retried job:", data);
-            fetchData();
-          })
-          .catch(function (e) {
-            console.error("Retry failed:", e);
-          });
       }
 
       fetchData();

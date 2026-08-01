@@ -69,9 +69,13 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	// Environment variables override file valies.
 	// Prefix: RJQ_ (e.g., RJQ_QUEUE_WORKERS=10).
-	// Dots in YAML keys become underscore (queue.workers -> QUEUE_WORKERS).
 	v.SetEnvPrefix("RJQ")
+	
+	// Dots in YAML keys become underscore (queue.workers -> QUEUE_WORKERS).
+	// YAML keys use dots.
+	// Env vars can't have dots. this line replaces (.) with (_) so Viper can match them.
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
 	v.AutomaticEnv()
 
 	var cfg Config
