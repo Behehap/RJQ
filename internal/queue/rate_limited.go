@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -55,19 +54,22 @@ func (q *RateLimitedQueue) startRefill() {
 
 // Dequeue blocks until a token is available, then dequeues.
 func (q *RateLimitedQueue) Dequeue() (*models.Job, error) {
+	job, err := q.MemoryQueue.Dequeue()
+	if job == nil {
+		return nil, err
+	}
 	// Wait for a token.
 	for {
 		q.mu.Lock()
 		if q.tokens > 0 {
 			q.tokens--
 			q.mu.Unlock()
-			break
+			return job, nil
 		}
 		q.mu.Unlock()
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	return q.MemoryQueue.Dequeue()
 }
 
 // Close stops the refill goroutine and closes the underlying queue.
@@ -81,17 +83,4 @@ func (q *RateLimitedQueue) AvailableTokens() int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return q.tokens
-}
-
-// Enqueue adds a job to the rate-limited queue.
-func (q *RateLimitedQueue) Enqueue(job *models.Job) error {
-	q.mu.Lock()
-	if q.closed {
-		q.mu.Unlock()
-		return fmt.Errorf("queue is closed")
-	}
-	q.mu.Unlock()
-
-	q.jobs <- job
-	return nil
 }
