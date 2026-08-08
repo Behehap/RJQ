@@ -360,8 +360,8 @@ func (s *SQLiteStorage) UpdateJobRetry(id string, status string, retryCount int,
 	return nil
 }
 
-// RequeueAtFront resets a preempted job back to pending without penalizing it.
-func (s *SQLiteStorage) RequeueAtFront(id string) error {
+// Requeue resets a preempted job back to pending without penalizing it.
+func (s *SQLiteStorage) Requeue(id string) error {
 	now := time.Now()
 	query := `
 	UPDATE jobs

@@ -168,7 +168,7 @@ func (p *Pool) processJob(workerID int, job *models.Job) {
 				"job_id":    job.ID,
 			}).Info("Job preempted, requeueing without retry penalty")
 			// Requeue without incrementing retry count.
-			if reqErr := p.queue.RequeueAtFront(job.ID); reqErr != nil {
+			if reqErr := p.queue.Requeue(job.ID); reqErr != nil {
 				log.WithFields(log.Fields{
 					"worker_id": workerID,
 					"job_id":    job.ID,

@@ -114,9 +114,9 @@ func (r *Router) SetProcessing(jobID string) error {
 	return r.FIFO.SetProcessing(jobID)
 }
 
-// RequeueAtFront delegates to the FIFO queue.
-func (r *Router) RequeueAtFront(jobID string) error {
-	return r.FIFO.RequeueAtFront(jobID)
+// Requeue delegates to the FIFO queue.
+func (r *Router) Requeue(jobID string) error {
+	return r.FIFO.Requeue(jobID)
 }
 
 // Recover delegates to all queues.

@@ -4,7 +4,7 @@ package queue
 
 import "rjq/pkg/models"
 
-// Queue is a FIFO job Queue. Workers call Dequeue to clam jobs,
+// Queue is a FIFO job Queue. Workers call Dequeue to claim jobs,
 // the ACK (success) or NACK (failure) to finalize them.
 
 type Queue interface {
@@ -35,9 +35,9 @@ type Queue interface {
 	// SetProcessing marks a job as currently being processed.
 	SetProcessing(jobID string) error
 
-	// RequeueAtFront resets a job to pending without incrementing retry_count.
+	// Requeue resets a job to pending without incrementing retry_count.
 	// Used when a job is preempted (not failed).
-	RequeueAtFront(id string) error
+	Requeue(id string) error
 
 	// Retry resets a failed job and re-enqueues it with additional retries.
 	Retry(jobID string, extraRetries int) error

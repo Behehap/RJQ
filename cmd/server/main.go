@@ -34,20 +34,18 @@ func main() {
 	}
 	defer store.Close()
 
-	// ── MULTI-QUEUE SETUP<div class="section-title">Queue</div>
 	// Create all three queue instances.
 	fifoQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
 	priorityQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
 	rateLimitedQueue := queue.NewRateLimitedQueue(store, cfg.Queue.Workers*10,
 		cfg.RateLimit.EmailsPerMinute, cfg.RateLimit.Burst)
 
+	fifoQueue.StartSweeper(5 * time.Minute)
+	priorityQueue.StartSweeper(5 * time.Minute)
+	rateLimitedQueue.StartSweeper(5 * time.Minute)
+
 	// Wrap them in a router that workers will pull from.
 	router := queue.NewRouter(fifoQueue, priorityQueue, rateLimitedQueue)
-
-	// Recover pending jobs for all queues on startup.
-	if err := router.Recover(); err != nil {
-		log.WithError(err).Fatal("Failed to recover queues")
-	}
 
 	// Initialize worker pool.
 	emailWorker := worker.NewEmailWorker(
@@ -63,6 +61,11 @@ func main() {
 		time.Duration(cfg.Queue.CooldownSec)*time.Second,
 	)
 	pool.Start()
+
+	// Recover pending jobs for all queues on startup.
+	if err := router.Recover(); err != nil {
+		log.WithError(err).Fatal("Failed to recover queues")
+	}
 
 	// Initialize API router.
 	r := chi.NewRouter()
