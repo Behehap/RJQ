@@ -44,7 +44,7 @@ func main() {
 	priorityQueue.StartSweeper(5 * time.Minute)
 	rateLimitedQueue.StartSweeper(5 * time.Minute)
 
-	// Wrap them in a router that workers will pull from.
+	// Wrap queues in a router that workers will pull from.
 	router := queue.NewRouter(fifoQueue, priorityQueue, rateLimitedQueue)
 
 	// Initialize worker pool.

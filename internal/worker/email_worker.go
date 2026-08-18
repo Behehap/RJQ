@@ -85,7 +85,7 @@ func (w *EmailWorker) Process(ctx context.Context, job *models.Job) error {
 	return nil
 }
 
-// buildMessage constructs a minimal RFC 822 email message.
+// buildMessage constructs an email message.
 func buildMessage(from, to, subject, body string) []byte {
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
 		from, to, subject, body)

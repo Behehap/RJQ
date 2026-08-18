@@ -91,6 +91,7 @@ func (p *Pool) Preempt(job *models.Job) (string, error) {
 // worker runs the dequeue-process loop for a single goroutine.
 func (p *Pool) worker(id int) {
 	defer p.wg.Done()
+
 	defer p.recoverWorker(id)
 
 	log.WithField("worker_id", id).Info("Worker started")
@@ -98,7 +99,8 @@ func (p *Pool) worker(id int) {
 	for {
 		// Check for a preempted super-urgent job assigned to this slot.
 		p.mu.Lock()
-		preemptJob := p.preemptQueue[id]
+		preemptJob := p.
+			preemptQueue[id]
 		p.preemptQueue[id] = nil
 		p.mu.Unlock()
 

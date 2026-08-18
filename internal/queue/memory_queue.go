@@ -12,9 +12,6 @@ import (
 
 // MemoryQueue implements Queue using a buffered Go channel for in-memory
 // delivery and a Storage backend for persistence.
-//
-// Recovery: On startup, call Recover() to load pending jobs from storage and
-// push them into the channel.
 type MemoryQueue struct {
 	store  storage.Storage
 	jobs   chan *models.Job
@@ -126,8 +123,6 @@ func (q *MemoryQueue) Recover() error {
 		return fmt.Errorf("recover: failed to list pending jobs: %w", err)
 	}
 	for _, job := range jobs {
-		// Reset processing jobs back to pending — the worker that
-		// held them is gone.
 		if job.Status == models.StatusProcessing {
 			if err := q.store.UpdateJobStatus(job.ID, models.StatusPending, ""); err != nil {
 				return fmt.Errorf("recover: failed to reset job %s: %w", job.ID, err)
@@ -186,10 +181,8 @@ func (q *MemoryQueue) StartSweeper(interval time.Duration) {
 
 // sweep performs one pass of the sweeper.
 func (q *MemoryQueue) sweep() {
-	// Fetch all jobs that are not in a terminal state.
 	jobs, err := q.store.ListPendingJobs() // returns pending + processing
 	if err != nil {
-		// Log error, but don't crash the sweeper.
 		log.WithError(err).Error("Sweeper: failed to list pending jobs")
 		return
 	}
@@ -197,8 +190,7 @@ func (q *MemoryQueue) sweep() {
 	for _, job := range jobs {
 		switch job.Status {
 		case models.StatusPending:
-			// Orphaned job: saved to DB but not in the channel.
-			// Try to enqueue it. Ignore errors (channel might be full or closing).
+
 			if err := q.Enqueue(job); err != nil {
 				log.WithFields(log.Fields{
 					"job_id": job.ID,
@@ -206,8 +198,7 @@ func (q *MemoryQueue) sweep() {
 				}).Debug("Sweeper: could not enqueue pending job")
 			}
 		case models.StatusProcessing:
-			// Stuck processing job: worker crashed after SetProcessing.
-			// Reset to pending if it's been stuck for > 10 minutes.
+
 			if time.Since(job.UpdatedAt) > 10*time.Minute {
 				log.WithField("job_id", job.ID).Warn("Sweeper: resetting stuck processing job")
 				if err := q.store.UpdateJobStatus(job.ID, models.StatusPending, ""); err != nil {

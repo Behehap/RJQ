@@ -59,7 +59,7 @@ func (r *Router) Dequeue() (*models.Job, error) {
 			}
 		}
 
-		// FIFO last.
+		// FIFO 
 		select {
 		case job := <-r.FIFO.jobs:
 			return job, nil
@@ -93,8 +93,7 @@ func (r *Router) Close() error {
 	return r.RateLimited.Close()
 }
 
-// Ack delegates to the appropriate queue. Since Ack only needs a job ID,
-// we use the FIFO queue's storage (all queues share the same storage).
+// Ack delegates to the appropriate queue.
 func (r *Router) Ack(jobID string) error {
 	return r.FIFO.Ack(jobID)
 }

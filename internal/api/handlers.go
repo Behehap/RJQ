@@ -331,3 +331,4 @@ func (h *Handler) RetryJob(w http.ResponseWriter, r *http.Request) {
 		"job_id": id,
 	})
 }
+
