@@ -13,12 +13,12 @@ import (
 // MemoryQueue implements Queue using a buffered Go channel for in-memory
 // delivery and a Storage backend for persistence.
 type MemoryQueue struct {
-	store  storage.Storage
-	jobs   chan *models.Job
-	mu     sync.Mutex
-	wg     sync.WaitGroup // tracks in-flight Enqueue sends
-	closed bool
-	done   chan struct{}
+	store  storage.Storage  // saves and loads jobs from database
+	jobs   chan *models.Job // waiting jobs sit here before processing
+	mu     sync.Mutex       // prevents races when checking closed
+	wg     sync.WaitGroup   // tracks Enqueue calls still running
+	closed bool             // true after shutdown starts
+	done   chan struct{}    // closed to tell senders queue is stopping
 }
 
 // NewMemoryQueue creates a queue backed by the given storage.
@@ -80,11 +80,10 @@ func (q *MemoryQueue) Nack(jobID string) error {
 		return fmt.Errorf("nack: job %s not found", jobID)
 	}
 
-	job.RetryCount++
 	if job.RetryCount >= job.MaxRetries {
-		return q.store.UpdateJobRetry(jobID, models.StatusFailed, job.RetryCount,
-			fmt.Sprintf("exhausted %d retries", job.RetryCount))
+		return q.store.UpdateJobRetry(jobID, models.StatusFailed, job.RetryCount, "exhausted retries")
 	}
+	job.RetryCount++
 
 	if err := q.store.UpdateJobRetry(jobID, models.StatusPending, job.RetryCount, ""); err != nil {
 		return err
