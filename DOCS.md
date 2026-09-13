@@ -28,35 +28,111 @@
 درخواست‌ها از سمت Client دریافت می‌شوند، اعتبارسنجی می‌شوند و به صف مناسب هدایت می‌شوند. Workerها به طور پیوسته از صف‌ها کار دریافت می‌کنند و آن را اجرا می‌کنند.
 
 ```mermaid
-graph TD
-    Client["🌐 فرستنده"] -->|"📨 ارسال درخواست"| API["🔌 سرور API"]
+flowchart TB
+    subgraph Input["۱. ورودی"]
+        direction LR
+        Client["🌐 فرستنده"] -->|"📨 ارسال درخواست"| API["🔌 سرور API"]
+        API --> Valid{"🧭 معتبر است؟"}
+        Valid -->|"بله"| SaveDB[("🗄️ ذخیره در SQLite")]
+        Valid -->|"خیر"| Error["⚠️ خطا"]
+    end
 
-    API -->|"💾 ذخیره‌سازی"| DB[("🗄️ پایگاه داده SQLite")]
-    API -->|"🧭 هدایت کار"| Router["🚦 مسیریاب"]
+    subgraph Routing["۲. مسیریابی"]
+        direction LR
+        SaveDB -->|"ذخیره موفق"| Router["🚦 مسیریاب"]
+        Router --> QType{"🚦 نوع صف؟"}
+    end
 
-    Router -->|"📬 صف ساده"| FIFO["📥 صف ساده"]
-    Router -->|"⭐ صف اولویت‌دار"| Priority["🔥 صف اولویت‌دار"]
-    Router -->|"⏳ صف محدودیت‌نرخ"| RateLimited["🚰 صف محدودیت‌نرخ"]
+    subgraph Queues["۳. صف‌ها"]
+        direction LR
+        QType -->|"ساده"| FIFO_Q["📥 صف ساده"]
+        QType -->|"محدودیت‌نرخ"| Rate_Q["🚰 صف محدودیت‌نرخ"]
+        QType -->|"اولویت‌دار"| Priority_Check{"⭐ سطح اولویت؟"}
 
-    FIFO -->|"📤 تحویل کار"| Pool["⚙️ استخر کارگر"]
-    Priority -->|"📤 تحویل کار"| Pool
-    RateLimited -->|"📤 تحویل کار"| Pool
+        subgraph PriorityLogic["منطق صف اولویت‌دار"]
+            direction TB
+            Priority_Check -->|"معمولی / فوری"| Priority_Q["🔥 صف اولویت‌دار"]
+            Priority_Check -->|"فوق‌العاده"| Preempt_Check{"🛑 کارگر معمولی مشغول است؟"}
+            Preempt_Check -->|"بله"| Preempt_Action["⚡ لغو و گرفتن کارگر"]
+            Preempt_Check -->|"خیر"| Priority_Q
+        end
 
-    Pool -->|"✅ Ack / ❌ Nack"| DB
-    Pool -->|"📧 ارسال ایمیل"| SMTP["📮 سرور SMTP"]
+        subgraph RateLogic["منطق صف محدودیت‌نرخ"]
+            direction TB
+            Rate_Q --> Token_Check{"🎫 توکن موجود؟"}
+            Token_Check -->|"خیر"| Wait_Token["⏳ انتظار توکن"]
+            Wait_Token --> Token_Check
+        end
+    end
 
-    DB -->|"♻️ بازیابی هنگام شروع"| Router
-    DB -->|"🧹 رفتگر دوره‌ای"| Router
+    subgraph WorkerAssignment["۴. انتساب به کارگر"]
+        direction TB
+        Worker_Avail{"📤 کارگر آزاد است؟"}
+        Worker_Avail -->|"خیر"| Wait_Queue["⏳ انتظار در صف"]
+        Wait_Queue --> Worker_Avail
+        Worker_Avail -->|"بله"| Worker["⚙️ استخر کارگر"]
+    end
+
+    subgraph Processing["۵. پردازش"]
+        direction TB
+        Worker --> Process["📧 پردازش و ارسال"]
+        Process --> Result{"✅ نتیجه چیست؟"}
+        Result -->|"موفقیت"| Ack["✅ Ack → completed"]
+        Result -->|"شکست"| Nack_Check{"🔁 retry < max؟"}
+        Result -->|"preempted"| Preempt_Return["↩️ بازگشت به صف"]
+        Nack_Check -->|"بله"| Requeue["🔄 بازگشت به صف"]
+        Nack_Check -->|"خیر"| Failed["❌ failed"]
+    end
+
+    subgraph EndStates["۶. پایان"]
+        direction LR
+        Ack --> End(["پایان"])
+        Failed --> End
+        Error --> End
+    end
+
+    subgraph Background["۷. عملیات پس‌زمینه"]
+        direction LR
+        SaveDB -->|"♻️ بازیابی هنگام شروع"| Router
+        SaveDB -->|"🧹 رفتگر دوره‌ای"| Router
+    end
+
+    %% اتصالات بین صف‌ها و بررسی کارگر آزاد
+    FIFO_Q --> Worker_Avail
+    Priority_Q --> Worker_Avail
+    Preempt_Action --> Worker
+    Token_Check -->|"بله"| Worker_Avail
+
+    Requeue --> Router
+    Preempt_Return --> Router
 
     style Client fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#e2e8f0
     style API fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#e2e8f0
+    style Valid fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style SaveDB fill:#1e293b,stroke:#4ade80,stroke-width:2px,color:#4ade80
     style Router fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
-    style DB fill:#1e293b,stroke:#4ade80,stroke-width:2px,color:#4ade80
-    style FIFO fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
-    style Priority fill:#1e293b,stroke:#fb923c,stroke-width:2px,color:#fb923c
-    style RateLimited fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
-    style Pool fill:#1e293b,stroke:#c084fc,stroke-width:2px,color:#c084fc
-    style SMTP fill:#1e293b,stroke:#f87171,stroke-width:2px,color:#f87171
+    style QType fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Priority_Check fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Preempt_Check fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Token_Check fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Worker_Avail fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Result fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Nack_Check fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+
+    style FIFO_Q fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Priority_Q fill:#1e293b,stroke:#fb923c,stroke-width:2px,color:#fb923c
+    style Rate_Q fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#38bdf8
+    style Preempt_Action fill:#1e293b,stroke:#fb923c,stroke-width:2px,color:#fb923c
+    style Wait_Token fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Wait_Queue fill:#1e293b,stroke:#facc15,stroke-width:2px,color:#facc15
+    style Worker fill:#1e293b,stroke:#c084fc,stroke-width:2px,color:#c084fc
+    style Process fill:#1e293b,stroke:#4ade80,stroke-width:2px,color:#4ade80
+    style Ack fill:#1e293b,stroke:#4ade80,stroke-width:2px,color:#4ade80
+    style Failed fill:#1e293b,stroke:#f87171,stroke-width:2px,color:#f87171
+    style Preempt_Return fill:#1e293b,stroke:#fb923c,stroke-width:2px,color:#fb923c
+    style Requeue fill:#1e293b,stroke:#fb923c,stroke-width:2px,color:#fb923c
+    style Error fill:#1e293b,stroke:#f87171,stroke-width:2px,color:#f87171
+    style End fill:#0f172a,stroke:#f87171,stroke-width:2px,color:#e2e8f0
 ```
 
 **اجزای اصلی:**
