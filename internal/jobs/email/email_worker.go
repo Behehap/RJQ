@@ -1,4 +1,4 @@
-package worker
+package email
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// EmailWorker sends emails via SMTP.
-type EmailWorker struct {
+// EmailProcessor sends emails via SMTP.
+type EmailProcessor struct {
 	smtpHost  string
 	smtpPort  int
 	smtpUser  string
@@ -21,9 +21,9 @@ type EmailWorker struct {
 	demoDelay time.Duration
 }
 
-// NewEmailWorker creates an EmailWorker with the given SMTP settings.
-func NewEmailWorker(host string, port int, user, pass string, timeout time.Duration, demoDelay time.Duration) *EmailWorker {
-	return &EmailWorker{
+// NewEmailProcessor creates an EmailProcessor with the given SMTP settings.
+func NewEmailProcessor(host string, port int, user, pass string, timeout time.Duration, demoDelay time.Duration) *EmailProcessor {
+	return &EmailProcessor{
 		smtpHost:  host,
 		smtpPort:  port,
 		smtpUser:  user,
@@ -34,7 +34,7 @@ func NewEmailWorker(host string, port int, user, pass string, timeout time.Durat
 }
 
 // Process sends an email. It respects the context deadline set by the pool.
-func (w *EmailWorker) Process(ctx context.Context, job *models.Job) error {
+func (w *EmailProcessor) Process(ctx context.Context, job *models.Job) error {
 	log.WithFields(log.Fields{
 		"job_id": job.ID,
 		"to":     job.ToEmail,

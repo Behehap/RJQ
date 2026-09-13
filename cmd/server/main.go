@@ -11,6 +11,7 @@ import (
 
 	"rjq/internal/api"
 	"rjq/internal/config"
+	"rjq/internal/jobs/email"
 	"rjq/internal/queue"
 	"rjq/internal/storage"
 	"rjq/internal/worker"
@@ -48,7 +49,7 @@ func main() {
 	router := queue.NewRouter(fifoQueue, priorityQueue, rateLimitedQueue)
 
 	// Initialize worker pool.
-	emailWorker := worker.NewEmailWorker(
+	EmailProcessor := email.NewEmailProcessor(
 		cfg.Email.SMTPHost,
 		cfg.Email.SMTPPort,
 		cfg.Email.SMTPUser,
@@ -56,7 +57,7 @@ func main() {
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.DemoDelaySec)*time.Second,
 	)
-	pool := worker.NewPool(router, emailWorker, cfg.Queue.Workers,
+	pool := worker.NewPool(router, EmailProcessor, cfg.Queue.Workers,
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.CooldownSec)*time.Second,
 	)
