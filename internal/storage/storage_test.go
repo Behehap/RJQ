@@ -27,10 +27,15 @@ func setupTestStorage(t *testing.T) *SQLiteStorage {
 func sampleJob() *models.Job {
 	now := time.Now()
 	return &models.Job{
-		ID:         "test-id-1",
-		ToEmail:    "test@example.com",
-		Subject:    "Test Subject",
-		Body:       "Test Body",
+		ID:      "test-id-1",
+		JobType: "email",
+		Payload: map[string]interface{}{
+			"to":      "test@example.com",
+			"subject": "Test Subject",
+			"body":    "Test Body",
+		},
+		QueueType:  models.QueueTypeFIFO,
+		Priority:   models.PriorityNormal,
 		Status:     models.StatusPending,
 		RetryCount: 0,
 		MaxRetries: 3,
@@ -57,7 +62,9 @@ func TestGetJob_Exists(t *testing.T) {
 	require.NotNil(t, result)
 
 	assert.Equal(t, job.ID, result.ID)
-	assert.Equal(t, job.ToEmail, result.ToEmail)
+	assert.Equal(t, job.JobType, result.JobType)
+	assert.Equal(t, job.Payload["to"], result.Payload["to"])
+	assert.Equal(t, job.Payload["subject"], result.Payload["subject"])
 	assert.Equal(t, job.Status, result.Status)
 }
 
@@ -101,7 +108,6 @@ func TestUpdateJobStatus_Failed(t *testing.T) {
 func TestListPendingJobs(t *testing.T) {
 	store := setupTestStorage(t)
 
-	// Save two pending and one completed job.
 	j1 := sampleJob()
 	j1.ID = "pending-1"
 	require.NoError(t, store.SaveJob(j1))
@@ -128,4 +134,18 @@ func TestDuplicateSave(t *testing.T) {
 	// Saving the same ID again should fail (PRIMARY KEY constraint).
 	err := store.SaveJob(job)
 	assert.Error(t, err)
+}
+
+func TestPayloadRoundTrip(t *testing.T) {
+	store := setupTestStorage(t)
+	job := sampleJob()
+	require.NoError(t, store.SaveJob(job))
+
+	result, err := store.GetJob(job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, "test@example.com", result.Payload["to"])
+	assert.Equal(t, "Test Subject", result.Payload["subject"])
+	assert.Equal(t, "Test Body", result.Payload["body"])
 }

@@ -22,3 +22,8 @@ timeout:
 rate_limit:
   emails_per_minute: 3
   burst: 1
+
+database:
+  backend: "postgres" # sqlite or postgres
+  sqlite_path: "rjq.db"
+  postgres_dsn: "postgres://rjq:rjq@localhost:5432/rjq?sslmode=disable"

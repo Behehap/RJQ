@@ -25,24 +25,19 @@ const (
 	QueueTypeRateLimited = "rate-limited"
 )
 
-// Job represents a single email-sending task.
-// Struct tas:
-//
-//	json: controls JSON field names (right side : REST API)
-//	db: would be for sqlx, but we're using sqlite3 directly, so omit
-
+// Job represents a single unit of work.
+// The concrete data for the work lives in Payload, keyed by job type.
 type Job struct {
-	ID           string     `json:"id"`
-	ToEmail      string     `json:"to"`
-	Subject      string     `json:"subject"`
-	Body         string     `json:"body"`
-	QueueType    string     `json:"queue"`
-	Priority     int        `json:"priority"`
-	Status       string     `json:"status"`
-	RetryCount   int        `json:"retry_count"`
-	MaxRetries   int        `json:"max_retries"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	ProcessedAt  *time.Time `json:"processed_at,omitempty"`
-	ErrorMessage string     `json:"error_message,omitempty"`
+	ID           string                 `json:"id"`
+	JobType      string                 `json:"job_type"`
+	Payload      map[string]interface{} `json:"payload"`
+	QueueType    string                 `json:"queue"`
+	Priority     int                    `json:"priority"`
+	Status       string                 `json:"status"`
+	RetryCount   int                    `json:"retry_count"`
+	MaxRetries   int                    `json:"max_retries"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
+	ProcessedAt  *time.Time             `json:"processed_at,omitempty"`
+	ErrorMessage string                 `json:"error_message,omitempty"`
 }

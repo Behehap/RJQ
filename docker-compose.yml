@@ -4,9 +4,27 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./rjq.db:/app/rjq.db
       - ./config.yaml:/app/config.yaml
     environment:
       - RJQ_EMAIL_SMTP_USER=${RJQ_EMAIL_SMTP_USER:-}
       - RJQ_EMAIL_SMTP_PASS=${RJQ_EMAIL_SMTP_PASS:-}
+      - RJQ_DATABASE_BACKEND=postgres
+      - RJQ_DATABASE_POSTGRES_DSN=postgres://rjq:rjq@postgres:5432/rjq?sslmode=disable
+    depends_on:
+      - postgres
     restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: rjq
+      POSTGRES_PASSWORD: rjq
+      POSTGRES_DB: rjq
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

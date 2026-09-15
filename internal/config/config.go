@@ -17,6 +17,13 @@ type Config struct {
 	Retry     RetryConfig
 	Timeout   TimeoutConfig
 	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	Database  DatabaseConfig
+}
+
+type DatabaseConfig struct {
+	Backend     string `mapstructure:"backend"`
+	SQLitePath  string `mapstructure:"sqlite_path"`
+	PostgresDSN string `mapstructure:"postgres_dsn"`
 }
 
 type ServerConfig struct {
@@ -70,7 +77,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Environment variables override file valies.
 	// Prefix: RJQ_ (e.g., RJQ_QUEUE_WORKERS=10).
 	v.SetEnvPrefix("RJQ")
-	
+
 	// Dots in YAML keys become underscore (queue.workers -> QUEUE_WORKERS).
 	// YAML keys use dots.
 	// Env vars can't have dots. this line replaces (.) with (_) so Viper can match them.

@@ -28,10 +28,15 @@ func setupTestQueue(t *testing.T) (*MemoryQueue, *storage.SQLiteStorage) {
 func testJob(id string) *models.Job {
 	now := time.Now()
 	return &models.Job{
-		ID:         id,
-		ToEmail:    "test@example.com",
-		Subject:    "Subject",
-		Body:       "Body",
+		ID:      id,
+		JobType: "email",
+		Payload: map[string]interface{}{
+			"to":      "test@example.com",
+			"subject": "Subject",
+			"body":    "Body",
+		},
+		QueueType:  models.QueueTypeFIFO,
+		Priority:   models.PriorityNormal,
 		Status:     models.StatusPending,
 		RetryCount: 0,
 		MaxRetries: 3,

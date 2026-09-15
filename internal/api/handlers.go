@@ -59,14 +59,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 // CreateJob handles POST /jobs.
 // It validates the request, persists the job, enqueues it,
 // and returns the job ID with status pending.
-// Super-urgent jobs attempt to preempt a running normal job.
 func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		To       string `json:"to"`
-		Subject  string `json:"subject"`
-		Body     string `json:"body"`
-		Queue    string `json:"queue"`
-		Priority int    `json:"priority"`
+		JobType  string                 `json:"job_type"`
+		Payload  map[string]interface{} `json:"payload"`
+		Queue    string                 `json:"queue"`
+		Priority int                    `json:"priority"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -74,25 +72,25 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.To == "" || req.Subject == "" || req.Body == "" {
-		writeError(w, http.StatusBadRequest, "to, subject, and body are required")
+	if req.JobType == "" {
+		writeError(w, http.StatusBadRequest, "job_type is required")
 		return
 	}
-
-	if req.Priority < 1 || req.Priority > 3 {
-		req.Priority = models.PriorityNormal
+	if req.Payload == nil {
+		req.Payload = map[string]interface{}{}
 	}
-
 	if req.Queue == "" {
 		req.Queue = models.QueueTypeFIFO
+	}
+	if req.Priority < 1 || req.Priority > 3 {
+		req.Priority = models.PriorityNormal
 	}
 
 	now := time.Now()
 	job := &models.Job{
 		ID:         uuid.New().String(),
-		ToEmail:    req.To,
-		Subject:    req.Subject,
-		Body:       req.Body,
+		JobType:    req.JobType,
+		Payload:    req.Payload,
 		QueueType:  req.Queue,
 		Priority:   req.Priority,
 		Status:     models.StatusPending,
@@ -116,7 +114,6 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 				"job_id": job.ID,
 				"error":  err,
 			}).Info("No preemptable job, super-urgent job queued normally")
-			// Fall through to normal enqueue.
 			if err := h.queue.Enqueue(job); err != nil {
 				log.WithError(err).Error("Failed to enqueue job")
 				writeError(w, http.StatusInternalServerError, "failed to enqueue job")
@@ -127,8 +124,6 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 				"job_id":        job.ID,
 				"preempted_job": preemptedID,
 			}).Info("Super-urgent job preempted a normal job")
-			// Job is already assigned to a worker slot via preemptQueue.
-			// Don't enqueue — it'll be picked up directly by the worker.
 		}
 	} else {
 		if err := h.queue.Enqueue(job); err != nil {
@@ -140,7 +135,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 	log.WithFields(log.Fields{
 		"job_id":   job.ID,
-		"to":       job.ToEmail,
+		"job_type": job.JobType,
 		"priority": job.Priority,
 	}).Info("Job created")
 
@@ -331,4 +326,3 @@ func (h *Handler) RetryJob(w http.ResponseWriter, r *http.Request) {
 		"job_id": id,
 	})
 }
-

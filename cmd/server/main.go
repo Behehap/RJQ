@@ -28,12 +28,17 @@ func main() {
 		log.WithError(err).Fatal("Failed to load config")
 	}
 
-	// Initialize storage.
-	store, err := storage.NewSQLiteStorage("rjq.db")
+	var store storage.Storage
+
+	switch cfg.Database.Backend {
+	case "postgres":
+		store, err = storage.NewPostgresStorage(cfg.Database.PostgresDSN)
+	default:
+		store, err = storage.NewSQLiteStorage(cfg.Database.SQLitePath)
+	}
 	if err != nil {
 		log.WithError(err).Fatal("Failed to initialize storage")
 	}
-	defer store.Close()
 
 	// Create all three queue instances.
 	fifoQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
@@ -49,7 +54,7 @@ func main() {
 	router := queue.NewRouter(fifoQueue, priorityQueue, rateLimitedQueue)
 
 	// Initialize worker pool.
-	EmailProcessor := email.NewEmailProcessor(
+	emailProcessor := email.NewEmailProcessor(
 		cfg.Email.SMTPHost,
 		cfg.Email.SMTPPort,
 		cfg.Email.SMTPUser,
@@ -57,7 +62,7 @@ func main() {
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.DemoDelaySec)*time.Second,
 	)
-	pool := worker.NewPool(router, EmailProcessor, cfg.Queue.Workers,
+	pool := worker.NewPool(router, emailProcessor, cfg.Queue.Workers,
 		time.Duration(cfg.Timeout.JobSeconds)*time.Second,
 		time.Duration(cfg.Queue.CooldownSec)*time.Second,
 	)
