@@ -5,6 +5,10 @@ RUN apk add --no-cache gcc musl-dev sqlite-dev
 
 WORKDIR /app
 COPY go.mod go.sum ./
+
+RUN go env -w GOPROXY=https://package-mirror.liara.ir/repository/go/
+RUN go env -w GOSUMDB=off
+
 RUN go mod download
 
 COPY . .

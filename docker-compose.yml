@@ -12,6 +12,7 @@ services:
       - RJQ_DATABASE_POSTGRES_DSN=postgres://rjq:rjq@postgres:5432/rjq?sslmode=disable
     depends_on:
       - postgres
+      - mailpit
     restart: unless-stopped
 
   postgres:
@@ -26,5 +27,37 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_SMTP_AUTH_ALLOW_INSECURE=true
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  grafana_data:

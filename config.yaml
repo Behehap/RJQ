@@ -3,14 +3,21 @@ server:
 
 queue:
   workers: 5
-  demo_delay_seconds: 10
+  demo_delay_seconds: 0
   cooldown_seconds: 0
 
 email:
+  mode: "test" #"test" for Mailpit, "production" for real SMTP
+
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
   smtp_user: ""
   smtp_pass: ""
+
+  test_host: "mailpit"
+  test_port: 1025
+  test_user: "rjq@localhost"
+  test_pass: ""
 
 retry:
   max_attempts: 3
