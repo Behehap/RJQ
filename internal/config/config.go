@@ -39,10 +39,17 @@ type QueueConfig struct {
 // EmailConfig holds SMTP settings for sending emails.
 // mapstructure tags map snake_case YAML keys to exported Go fields.
 type EmailConfig struct {
+	Mode string `mapstructure:"mode"`
+
 	SMTPHost string `mapstructure:"smtp_host"`
 	SMTPPort int    `mapstructure:"smtp_port"`
 	SMTPUser string `mapstructure:"smtp_user"`
 	SMTPPass string `mapstructure:"smtp_pass"`
+
+	TestHost string `mapstructure:"test_host"`
+	TestPort int    `mapstructure:"test_port"`
+	TestUser string `mapstructure:"test_user"`
+	TestPass string `mapstructure:"test_pass"`
 }
 
 // RetryConfig holds retry policy settings.

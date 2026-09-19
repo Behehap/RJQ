@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"rjq/internal/metrics"
 	"rjq/internal/queue"
 	"rjq/pkg/models"
 
@@ -161,7 +162,13 @@ func (p *Pool) processJob(workerID int, job *models.Job) {
 		"priority":  job.Priority,
 	}).Info("Processing job")
 
+	metrics.WorkersBusy.Inc()
+	defer metrics.WorkersBusy.Dec()
+
+	start := time.Now()
 	err := p.processor.Process(ctx, job)
+	metrics.JobProcessingDuration.WithLabelValues(job.QueueType).Observe(time.Since(start).Seconds())
+	
 	if err != nil {
 		// Check if this was a preemption (context cancelled).
 		if ctx.Err() == context.Canceled {
