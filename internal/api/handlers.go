@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"rjq/internal/metrics"
 	"rjq/internal/queue"
 	"rjq/internal/storage"
 	"rjq/internal/worker"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -54,6 +56,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/pending/priority", h.GetPendingPriority)
 	r.Get("/pending/rate-limited", h.GetPendingRateLimited)
 	r.Post("/jobs/{id}/retry", h.RetryJob)
+	r.Handle("/metrics", promhttp.Handler())
 }
 
 // CreateJob handles POST /jobs.
@@ -105,6 +108,8 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create job")
 		return
 	}
+	// Count the job  that it is safely persisted
+	metrics.JobsSubmitted.WithLabelValues(job.QueueType).Inc()
 
 	// Super-urgent jobs attempt preemption before enqueuing.
 	if job.Priority == models.PrioritySuperUrgent {
@@ -145,6 +150,7 @@ func (h *Handler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		"job_id": job.ID,
 		"status": job.Status,
 	})
+
 }
 
 // GetJob handles GET /jobs/{id}.

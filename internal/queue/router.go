@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"rjq/internal/metrics"
 	"rjq/pkg/models"
 )
 
@@ -22,14 +23,19 @@ func NewRouter(fifo, priority *MemoryQueue, rateLimited *RateLimitedQueue) *Rout
 
 // Enqueue routes a job to the appropriate queue based on QueueType.
 func (r *Router) Enqueue(job *models.Job) error {
+	var err error
 	switch job.QueueType {
 	case models.QueueTypePriority:
-		return r.Priority.Enqueue(job)
+		err = r.Priority.Enqueue(job)
 	case models.QueueTypeRateLimited:
-		return r.RateLimited.Enqueue(job)
+		err = r.RateLimited.Enqueue(job)
 	default:
-		return r.FIFO.Enqueue(job)
+		err = r.FIFO.Enqueue(job)
 	}
+	if err == nil {
+		metrics.QueueDepth.WithLabelValues(job.QueueType).Inc()
+	}
+	return err
 }
 
 // Dequeue pulls from all queues with strict priority order:
@@ -54,14 +60,22 @@ func (r *Router) Dequeue() (*models.Job, error) {
 					r.RateLimited.tokens--
 				}
 				r.RateLimited.mu.Unlock()
+
+				if job != nil {
+					metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
+				}
 				return job, nil
+
 			default:
 			}
 		}
 
-		// FIFO 
+		// FIFO
 		select {
 		case job := <-r.FIFO.jobs:
+			if job != nil {
+				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
+			}
 			return job, nil
 		default:
 		}
@@ -69,8 +83,14 @@ func (r *Router) Dequeue() (*models.Job, error) {
 		// All empty — block on all three simultaneously.
 		select {
 		case job := <-r.Priority.jobs:
+			if job != nil {
+				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
+			}
 			return job, nil
 		case job := <-r.RateLimited.jobs:
+			if job != nil {
+				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
+			}
 			r.RateLimited.mu.Lock()
 			if r.RateLimited.tokens > 0 {
 				r.RateLimited.tokens--
@@ -81,9 +101,14 @@ func (r *Router) Dequeue() (*models.Job, error) {
 			if !ok {
 				return nil, nil
 			}
+			if job != nil {
+				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
+			}
 			return job, nil
+
 		}
 	}
+
 }
 
 // Close closes all queues.

@@ -20,10 +20,13 @@ type EmailProcessor struct {
 	smtpPass  string
 	timeout   time.Duration
 	demoDelay time.Duration
+	useAuth   bool
 }
 
 // NewEmailProcessor creates an EmailProcessor with the given SMTP settings.
-func NewEmailProcessor(host string, port int, user, pass string, timeout, demoDelay time.Duration) *EmailProcessor {
+// useAuth should be true for real SMTP providers and false for local SMTP sinks
+// like Mailpit that accept unauthenticated connections.
+func NewEmailProcessor(host string, port int, user, pass string, timeout, demoDelay time.Duration, useAuth bool) *EmailProcessor {
 	return &EmailProcessor{
 		smtpHost:  host,
 		smtpPort:  port,
@@ -31,13 +34,13 @@ func NewEmailProcessor(host string, port int, user, pass string, timeout, demoDe
 		smtpPass:  pass,
 		timeout:   timeout,
 		demoDelay: demoDelay,
+		useAuth:   useAuth,
 	}
 }
 
 // Process reads email fields from the job payload and sends the message.
 // Returns an error if the payload is missing required fields or SMTP fails.
 func (w *EmailProcessor) Process(ctx context.Context, job *models.Job) error {
-	// Extract fields from payload.
 	to, _ := job.Payload["to"].(string)
 	subject, _ := job.Payload["subject"].(string)
 	body, _ := job.Payload["body"].(string)
@@ -54,8 +57,11 @@ func (w *EmailProcessor) Process(ctx context.Context, job *models.Job) error {
 	addr := fmt.Sprintf("%s:%d", w.smtpHost, w.smtpPort)
 	msg := buildMessage(w.smtpUser, to, subject, body)
 
+	// Only authenticate when explicitly enabled and credentials are present.
+	// This avoids the "unencrypted connection" error from Go's PlainAuth
+	// when talking to local SMTP sinks like Mailpit.
 	var auth smtp.Auth
-	if w.smtpUser != "" && w.smtpPass != "" {
+	if w.useAuth && w.smtpUser != "" && w.smtpPass != "" {
 		auth = smtp.PlainAuth("", w.smtpUser, w.smtpPass, w.smtpHost)
 	}
 
