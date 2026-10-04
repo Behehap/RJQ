@@ -84,3 +84,14 @@ func (q *RateLimitedQueue) AvailableTokens() int {
 	defer q.mu.Unlock()
 	return q.tokens
 }
+
+func (q *RateLimitedQueue) DequeueOrWait(d time.Duration) (*models.Job, error) {
+	
+	job, err := q.Dequeue()
+	if err != nil || job != nil {
+		return job, err
+	}
+
+	time.Sleep(d)
+	return q.Dequeue()
+}

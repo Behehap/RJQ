@@ -2,8 +2,8 @@ server:
   port: 8080
 
 queue:
-  workers: 5
-  demo_delay_seconds: 0
+  workers: 100
+  demo_delay_seconds: 0.5
   cooldown_seconds: 0
 
 email:

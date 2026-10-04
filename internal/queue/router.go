@@ -3,6 +3,7 @@ package queue
 import (
 	"rjq/internal/metrics"
 	"rjq/pkg/models"
+	"time"
 )
 
 // Router holds all three queues and routes jobs to the correct one.
@@ -157,4 +158,52 @@ func (r *Router) Recover() error {
 // Retry delegates to the FIFO queue's Retry.
 func (r *Router) Retry(jobID string, extraRetries int) error {
 	return r.FIFO.Retry(jobID, extraRetries)
+}
+
+func (r *Router) dequeueNonBlocking() (*models.Job, error) {
+	// Priority first
+	select {
+	case job := <-r.Priority.jobs:
+		return job, nil
+	default:
+	}
+
+	// Rate-limited if token available
+	if r.RateLimited.AvailableTokens() > 0 {
+		select {
+		case job := <-r.RateLimited.jobs:
+			r.RateLimited.mu.Lock()
+			if r.RateLimited.tokens > 0 {
+				r.RateLimited.tokens--
+			}
+			r.RateLimited.mu.Unlock()
+			return job, nil
+		default:
+		}
+	}
+
+	// FIFO last
+	select {
+	case job := <-r.FIFO.jobs:
+		return job, nil
+	default:
+	}
+
+	return nil, nil
+}
+
+func (r *Router) DequeueOrWait(d time.Duration) (*models.Job, error) {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		// Try the fast path — the existing Dequeue.
+		job, err := r.dequeueNonBlocking()
+		if err != nil {
+			return nil, err
+		}
+		if job != nil {
+			return job, nil
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return nil, nil
 }

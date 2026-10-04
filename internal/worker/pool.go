@@ -26,27 +26,29 @@ type workerState struct {
 
 // Pool manages a fixed number of worker goroutines.
 type Pool struct {
-	queue        queue.Queue
-	processor    Processor
-	count        int
-	timeout      time.Duration
-	cooldown     time.Duration
-	wg           sync.WaitGroup
-	mu           sync.Mutex
-	workers      []*workerState
-	preemptQueue []*models.Job // preempted slot gets the super-urgent job
+	queue         queue.Queue
+	processor     Processor
+	count         int
+	timeout       time.Duration
+	cooldown      time.Duration
+	wg            sync.WaitGroup
+	mu            sync.Mutex
+	workers       []*workerState
+	preemptQueue  []*models.Job   // preempted slot gets the super-urgent job
+	preemptSignal []chan struct{} // Signal for a super urgent job
 }
 
 // NewPool creates a worker pool.
 func NewPool(q queue.Queue, p Processor, workers int, timeout, cooldown time.Duration) *Pool {
 	return &Pool{
-		queue:        q,
-		processor:    p,
-		count:        workers,
-		timeout:      timeout,
-		cooldown:     cooldown,
-		workers:      make([]*workerState, workers),
-		preemptQueue: make([]*models.Job, workers),
+		queue:         q,
+		processor:     p,
+		count:         workers,
+		timeout:       timeout,
+		cooldown:      cooldown,
+		workers:       make([]*workerState, workers),
+		preemptQueue:  make([]*models.Job, workers),
+		preemptSignal: make([]chan struct{}, workers),
 	}
 }
 
@@ -54,6 +56,7 @@ func NewPool(q queue.Queue, p Processor, workers int, timeout, cooldown time.Dur
 func (p *Pool) Start() {
 	for i := 0; i < p.count; i++ {
 		p.workers[i] = &workerState{}
+		p.preemptSignal[i] = make(chan struct{}, 1)
 		p.wg.Add(1)
 		go p.worker(i)
 	}
@@ -71,17 +74,20 @@ func (p *Pool) Wait() {
 func (p *Pool) Preempt(job *models.Job) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
 	for i, w := range p.workers {
-		if w.currentJob != nil && w.currentJob.Priority == models.PriorityNormal {
+		if w.currentJob != nil &&
+			w.currentJob.Priority == models.PriorityNormal &&
+			p.preemptQueue[i] == nil {
 			preemptedID := w.currentJob.ID
-			log.WithFields(log.Fields{
-				"preempted_job": preemptedID,
-				"super_urgent":  job.ID,
-				"worker_id":     i,
-			}).Info("Preempting job")
 			w.cancel()
 			p.preemptQueue[i] = job
+
+			// wake the worker so it picks up the job immediately
+			select {
+			case p.preemptSignal[i] <- struct{}{}:
+			default:
+			}
+
 			return preemptedID, nil
 		}
 	}
@@ -92,37 +98,34 @@ func (p *Pool) Preempt(job *models.Job) (string, error) {
 // worker runs the dequeue-process loop for a single goroutine.
 func (p *Pool) worker(id int) {
 	defer p.wg.Done()
-
 	defer p.recoverWorker(id)
 
 	log.WithField("worker_id", id).Info("Worker started")
 
 	for {
-		// Check for a preempted super-urgent job assigned to this slot.
+		
 		p.mu.Lock()
-		preemptJob := p.
-			preemptQueue[id]
+		preemptJob := p.preemptQueue[id]
 		p.preemptQueue[id] = nil
 		p.mu.Unlock()
 
-		var job *models.Job
-		var err error
-
 		if preemptJob != nil {
-			job = preemptJob
-		} else {
-			job, err = p.queue.Dequeue()
-			if err != nil {
-				log.WithFields(log.Fields{
-					"worker_id": id,
-					"error":     err,
-				}).Error("Dequeue failed")
-				continue
-			}
-			if job == nil {
-				log.WithField("worker_id", id).Info("Worker exiting, queue closed")
-				return
-			}
+			p.processJob(id, preemptJob)
+			time.Sleep(p.cooldown)
+			continue
+		}
+
+		job, err := p.queue.DequeueOrWait(100 * time.Millisecond)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"worker_id": id,
+				"error":     err,
+			}).Error("Dequeue failed")
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+		if job == nil {
+			continue
 		}
 
 		p.processJob(id, job)
@@ -168,7 +171,7 @@ func (p *Pool) processJob(workerID int, job *models.Job) {
 	start := time.Now()
 	err := p.processor.Process(ctx, job)
 	metrics.JobProcessingDuration.WithLabelValues(job.QueueType).Observe(time.Since(start).Seconds())
-	
+
 	if err != nil {
 		// Check if this was a preemption (context cancelled).
 		if ctx.Err() == context.Canceled {

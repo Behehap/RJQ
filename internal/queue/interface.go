@@ -2,7 +2,10 @@
 // Implementation must be safe for concurrent use by multiple goroutines.
 package queue
 
-import "rjq/pkg/models"
+import (
+	"rjq/pkg/models"
+	"time"
+)
 
 // Queue is a FIFO job Queue. Workers call Dequeue to claim jobs,
 // the ACK (success) or NACK (failure) to finalize them.
@@ -41,4 +44,9 @@ type Queue interface {
 
 	// Retry resets a failed job and re-enqueues it with additional retries.
 	Retry(jobID string, extraRetries int) error
+
+	// DequeueOrWait blocks for up to d waiting for a job. Returns (nil, nil)
+	// if no job arrives within d. Used by the pool to periodically re-check
+	// the preempt slots without blocking forever.
+	DequeueOrWait(d time.Duration) (*models.Job, error)
 }

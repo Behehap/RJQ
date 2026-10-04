@@ -221,3 +221,15 @@ func (q *MemoryQueue) sweep() {
 		}
 	}
 }
+
+func (q *MemoryQueue) DequeueOrWait(d time.Duration) (*models.Job, error) {
+	select {
+	case job, ok := <-q.jobs:
+		if !ok {
+			return nil, nil
+		}
+		return job, nil
+	case <-time.After(d):
+		return nil, nil
+	}
+}
