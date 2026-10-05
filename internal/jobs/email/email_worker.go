@@ -3,6 +3,7 @@ package email
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/smtp"
 	"time"
 
@@ -67,7 +68,7 @@ func (w *EmailProcessor) Process(ctx context.Context, job *models.Job) error {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- smtp.SendMail(addr, auth, w.smtpUser, []string{to}, msg)
+		done <- w.sendWithTimeout(ctx, addr, auth, to, msg)
 	}()
 
 	select {
@@ -106,4 +107,51 @@ func buildMessage(from, to, subject, body string) []byte {
 	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
 		from, to, subject, body)
 	return []byte(msg)
+}
+
+// sendWithTimeout dials the SMTP server with a bounded timeout and sends
+// the message. Uses net.Dialer so a stuck connection cannot block the
+// worker indefinitely.
+func (w *EmailProcessor) sendWithTimeout(ctx context.Context, addr string, auth smtp.Auth, to string, msg []byte) error {
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("dial failed: %w", err)
+	}
+
+	c, err := smtp.NewClient(conn, w.smtpHost)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("smtp client failed: %w", err)
+	}
+	defer c.Close()
+
+	if auth != nil {
+		if err := c.Auth(auth); err != nil {
+			return fmt.Errorf("auth failed: %w", err)
+		}
+	}
+
+	if err := c.Mail(w.smtpUser); err != nil {
+		return fmt.Errorf("mail from failed: %w", err)
+	}
+	if err := c.Rcpt(to); err != nil {
+		return fmt.Errorf("rcpt to failed: %w", err)
+	}
+
+	wc, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("data failed: %w", err)
+	}
+	if _, err := wc.Write(msg); err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+	if err := wc.Close(); err != nil {
+		return fmt.Errorf("close failed: %w", err)
+	}
+
+	if err := c.Quit(); err != nil {
+		return fmt.Errorf("quit failed: %w", err)
+	}
+	return nil
 }

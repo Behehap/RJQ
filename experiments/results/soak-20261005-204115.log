@@ -1,0 +1,16 @@
+[20:41:45] elapsed=30s remaining=1770s submitted=245 (8.1/s) pending=106 processing=4
+[20:42:15] elapsed=60s remaining=1740s submitted=498 (8.3/s) pending=211 processing=5
+[20:42:45] elapsed=90s remaining=1710s submitted=703 (7.8/s) pending=266 processing=5
+[20:43:15] elapsed=120s remaining=1680s submitted=861 (7.1/s) pending=275 processing=5
+[20:43:45] elapsed=150s remaining=1650s submitted=1017 (6.7/s) pending=281 processing=5
+[20:44:15] elapsed=180s remaining=1620s submitted=1150 (6.3/s) pending=286 processing=4
+[20:44:46] elapsed=211s remaining=1589s submitted=1271 (6.0/s) pending=283 processing=4
+[20:45:16] elapsed=241s remaining=1559s submitted=1372 (5.6/s) pending=284 processing=4
+[20:45:46] elapsed=271s remaining=1529s submitted=1493 (5.5/s) pending=285 processing=4
+[20:47:11] elapsed=356s remaining=1444s submitted=1628 (4.5/s) pending=1 processing=5
+[20:47:41] elapsed=386s remaining=1414s submitted=1770 (4.5/s) pending=111 processing=4
+[20:48:11] elapsed=416s remaining=1384s submitted=1885 (4.5/s) pending=193 processing=4
+[20:48:41] elapsed=446s remaining=1354s submitted=2013 (4.5/s) pending=212 processing=5
+[20:49:11] elapsed=476s remaining=1324s submitted=2162 (4.5/s) pending=213 processing=5
+[20:49:41] elapsed=506s remaining=1294s submitted=2288 (4.5/s) pending=221 processing=3
+[20:50:11] elapsed=536s remaining=1264s submitted=2367 (4.4/s) pending=225 processing=2
