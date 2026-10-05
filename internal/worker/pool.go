@@ -135,6 +135,10 @@ func (p *Pool) worker(id int) {
 
 // processJob wraps the Processor call with a timeout and handles Ack/Nack.
 func (p *Pool) processJob(workerID int, job *models.Job) {
+	    // Wait time = time from creation to when a worker picked it up.
+    wait := time.Since(job.CreatedAt).Seconds()
+    metrics.JobWaitDuration.WithLabelValues(job.QueueType).Observe(wait)
+	
 	if err := p.queue.SetProcessing(job.ID); err != nil {
 		log.WithFields(log.Fields{
 			"worker_id": workerID,

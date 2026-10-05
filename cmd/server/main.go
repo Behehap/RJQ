@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,6 +41,11 @@ func main() {
 		log.WithError(err).Fatal("Failed to initialize storage")
 	}
 	defer store.Close()
+
+	// Register the queue depth collector so it reads live from the database.
+	if dbStore, ok := store.(interface{ DB() *sql.DB }); ok {
+		prometheus.MustRegister(metrics.NewQueueDepthCollector(dbStore.DB()))
+	}
 
 	// Create all three queue instances.
 	fifoQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)

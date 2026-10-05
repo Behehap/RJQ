@@ -351,3 +351,8 @@ func (s *SQLiteStorage) ResetForRetry(id string, extraRetries int) error {
 	}
 	return nil
 }
+
+// DB returns the underlying database handle. Used by metrics collectors.
+func (s *SQLiteStorage) DB() *sql.DB {
+	return s.db
+}

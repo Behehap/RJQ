@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"rjq/internal/metrics"
 	"rjq/pkg/models"
 	"time"
 )
@@ -33,9 +32,7 @@ func (r *Router) Enqueue(job *models.Job) error {
 	default:
 		err = r.FIFO.Enqueue(job)
 	}
-	if err == nil {
-		metrics.QueueDepth.WithLabelValues(job.QueueType).Inc()
-	}
+
 	return err
 }
 
@@ -62,52 +59,12 @@ func (r *Router) Dequeue() (*models.Job, error) {
 				}
 				r.RateLimited.mu.Unlock()
 
-				if job != nil {
-					metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
-				}
 				return job, nil
 
 			default:
 			}
 		}
 
-		// FIFO
-		select {
-		case job := <-r.FIFO.jobs:
-			if job != nil {
-				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
-			}
-			return job, nil
-		default:
-		}
-
-		// All empty — block on all three simultaneously.
-		select {
-		case job := <-r.Priority.jobs:
-			if job != nil {
-				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
-			}
-			return job, nil
-		case job := <-r.RateLimited.jobs:
-			if job != nil {
-				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
-			}
-			r.RateLimited.mu.Lock()
-			if r.RateLimited.tokens > 0 {
-				r.RateLimited.tokens--
-			}
-			r.RateLimited.mu.Unlock()
-			return job, nil
-		case job, ok := <-r.FIFO.jobs:
-			if !ok {
-				return nil, nil
-			}
-			if job != nil {
-				metrics.QueueDepth.WithLabelValues(job.QueueType).Dec()
-			}
-			return job, nil
-
-		}
 	}
 
 }

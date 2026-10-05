@@ -297,3 +297,8 @@ func (s *PostgresStorage) pgQueryJobs(query string, args ...interface{}) ([]*mod
 	}
 	return jobs, rows.Err()
 }
+
+// DB returns the underlying database handle. Used by metrics collectors.
+func (s *PostgresStorage) DB() *sql.DB {
+	return s.db
+}

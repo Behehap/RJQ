@@ -68,15 +68,7 @@ var (
 		[]string{"queue"},
 	)
 
-	// QueueDepth is the number of pending jobs per queue right now.
-	// This is the number that tells us if we are falling behind.
-	QueueDepth = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "rjq_queue_depth",
-			Help: "Number of pending jobs per queue.",
-		},
-		[]string{"queue"},
-	)
+	
 
 	// WorkersBusy tracks how many workers are currently processing.
 	// Paired with total worker count, this shows utilization.
