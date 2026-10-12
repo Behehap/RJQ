@@ -67,10 +67,6 @@ func (q *MemoryQueue) Dequeue() (*models.Job, error) {
 
 // Ack updates the job status to completed.
 func (q *MemoryQueue) Ack(jobID string) error {
-	job, err := q.store.GetJob(jobID)
-	if err == nil && job != nil {
-		metrics.JobsCompleted.WithLabelValues(job.QueueType).Inc()
-	}
 	return q.store.UpdateJobStatus(jobID, models.StatusCompleted, "")
 }
 
@@ -85,13 +81,12 @@ func (q *MemoryQueue) Nack(jobID string) error {
 		return fmt.Errorf("nack: job %s not found", jobID)
 	}
 
-	if job.RetryCount >= job.MaxRetries {
-		metrics.JobsFailed.WithLabelValues(job.QueueType).Inc()
-		return q.store.UpdateJobRetry(jobID, models.StatusFailed, job.RetryCount, "exhausted retries")
-	}
 	job.RetryCount++
+	if job.RetryCount >= job.MaxRetries {
+		return q.store.UpdateJobRetry(jobID, models.StatusFailed, job.RetryCount,
+			fmt.Sprintf("exhausted %d retries", job.RetryCount))
+	}
 
-	metrics.JobsRetried.WithLabelValues(job.QueueType).Inc()
 	if err := q.store.UpdateJobRetry(jobID, models.StatusPending, job.RetryCount, ""); err != nil {
 		return err
 	}

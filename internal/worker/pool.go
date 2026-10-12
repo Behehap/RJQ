@@ -74,20 +74,18 @@ func (p *Pool) Wait() {
 func (p *Pool) Preempt(job *models.Job) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	for i, w := range p.workers {
 		if w.currentJob != nil &&
 			w.currentJob.Priority == models.PriorityNormal &&
 			p.preemptQueue[i] == nil {
 			preemptedID := w.currentJob.ID
+
+			// Count the preemption by queue type.
+			metrics.JobsPreempted.WithLabelValues(w.currentJob.QueueType).Inc()
+
 			w.cancel()
 			p.preemptQueue[i] = job
-
-			// wake the worker so it picks up the job immediately
-			select {
-			case p.preemptSignal[i] <- struct{}{}:
-			default:
-			}
-
 			return preemptedID, nil
 		}
 	}

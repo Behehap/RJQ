@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"rjq/internal/metrics"
 	"rjq/pkg/models"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -179,8 +180,16 @@ func (s *SQLiteStorage) GetJob(id string) (*models.Job, error) {
 	return job, nil
 }
 
-// UpdateJobStatus updates the job's status and optionally records an error.
 func (s *SQLiteStorage) UpdateJobStatus(id string, status string, errMsg string) error {
+	// fetch the job so we know its queue type
+	job, err := s.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to load job for status update: %w", err)
+	}
+	if job == nil {
+		return fmt.Errorf("job %s not found", id)
+	}
+
 	now := time.Now()
 	query := `
 	UPDATE jobs
@@ -190,10 +199,19 @@ func (s *SQLiteStorage) UpdateJobStatus(id string, status string, errMsg string)
 	    processed_at = CASE WHEN ? IN ('completed', 'failed') THEN ? ELSE processed_at END
 	WHERE id = ?`
 
-	_, err := s.db.Exec(query, status, errMsg, now, status, now, id)
+	_, err = s.db.Exec(query, status, errMsg, now, status, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
+
+	// Count only successful, real transitions.
+	switch status {
+	case models.StatusCompleted:
+		metrics.JobsCompleted.WithLabelValues(job.QueueType).Inc()
+	case models.StatusFailed:
+		metrics.JobsFailed.WithLabelValues(job.QueueType).Inc()
+	}
+
 	return nil
 }
 
@@ -296,6 +314,14 @@ func (s *SQLiteStorage) queryJobs(query string, args ...interface{}) ([]*models.
 
 // UpdateJobRetry updates the retry count and status of a job.
 func (s *SQLiteStorage) UpdateJobRetry(id string, status string, retryCount int, errMsg string) error {
+	job, err := s.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to load job for retry update: %w", err)
+	}
+	if job == nil {
+		return fmt.Errorf("job %s not found", id)
+	}
+
 	now := time.Now()
 	query := `
 	UPDATE jobs
@@ -306,10 +332,18 @@ func (s *SQLiteStorage) UpdateJobRetry(id string, status string, retryCount int,
 	    processed_at = CASE WHEN ? IN ('completed', 'failed') THEN ? ELSE processed_at END
 	WHERE id = ?`
 
-	_, err := s.db.Exec(query, status, retryCount, errMsg, now, status, now, id)
+	_, err = s.db.Exec(query, status, retryCount, errMsg, now, status, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to update job retry: %w", err)
 	}
+
+	switch status {
+	case models.StatusPending:
+		metrics.JobsRetried.WithLabelValues(job.QueueType).Inc()
+	case models.StatusFailed:
+		metrics.JobsFailed.WithLabelValues(job.QueueType).Inc()
+	}
+
 	return nil
 }
 

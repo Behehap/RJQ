@@ -68,8 +68,6 @@ var (
 		[]string{"queue"},
 	)
 
-	
-
 	// WorkersBusy tracks how many workers are currently processing.
 	// Paired with total worker count, this shows utilization.
 	WorkersBusy = promauto.NewGauge(
@@ -95,5 +93,15 @@ var (
 			Name: "rjq_recovery_duration_seconds",
 			Help: "Time taken to recover pending jobs on startup.",
 		},
+	)
+
+	// JobsPreempted counts running jobs cancelled to make room for a
+	// super-urgent job.
+	JobsPreempted = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rjq_jobs_preempted_total",
+			Help: "Total number of jobs preempted by super-urgent arrivals.",
+		},
+		[]string{"queue"},
 	)
 )
