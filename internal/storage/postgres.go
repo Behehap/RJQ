@@ -302,3 +302,27 @@ func (s *PostgresStorage) pgQueryJobs(query string, args ...interface{}) ([]*mod
 func (s *PostgresStorage) DB() *sql.DB {
 	return s.db
 }
+
+// CountByQueueAndStatus returns job counts grouped by queue type and status.
+func (s *PostgresStorage) CountByQueueAndStatus() (map[string]map[string]int, error) {
+	query := `SELECT queue_type, status, COUNT(*) FROM jobs GROUP BY queue_type, status`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count jobs: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]map[string]int)
+	for rows.Next() {
+		var queueType, status string
+		var count int
+		if err := rows.Scan(&queueType, &status, &count); err != nil {
+			return nil, err
+		}
+		if result[queueType] == nil {
+			result[queueType] = make(map[string]int)
+		}
+		result[queueType][status] = count
+	}
+	return result, rows.Err()
+}

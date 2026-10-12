@@ -52,4 +52,7 @@ type Storage interface {
 
 	// ResetForRetry resets a failed job back to pending with additional retries.
 	ResetForRetry(id string, extraRetries int) error
+
+	// CountByQueueAndStatus returns job counts grouped by queue type and status.
+	CountByQueueAndStatus() (map[string]map[string]int, error)
 }

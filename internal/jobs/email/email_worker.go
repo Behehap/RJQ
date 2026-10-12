@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/smtp"
@@ -59,8 +60,8 @@ func (w *EmailProcessor) Process(ctx context.Context, job *models.Job) error {
 	msg := buildMessage(w.smtpUser, to, subject, body)
 
 	// Only authenticate when explicitly enabled and credentials are present.
-	// This avoids the "unencrypted connection" error from Go's PlainAuth
-	// when talking to local SMTP sinks like Mailpit.
+	// This avoids PlainAuth attempts against local SMTP sinks like Mailpit
+	// that accept unauthenticated connections.
 	var auth smtp.Auth
 	if w.useAuth && w.smtpUser != "" && w.smtpPass != "" {
 		auth = smtp.PlainAuth("", w.smtpUser, w.smtpPass, w.smtpHost)
@@ -109,14 +110,22 @@ func buildMessage(from, to, subject, body string) []byte {
 	return []byte(msg)
 }
 
-// sendWithTimeout dials the SMTP server with a bounded timeout and sends
-// the message. Uses net.Dialer so a stuck connection cannot block the
-// worker indefinitely.
+// sendWithTimeout dials the SMTP server with a bounded timeout, upgrades to
+// TLS when the server supports it, authenticates if configured, and sends
+// the message. Every read and write on the underlying connection is bounded
+// by the caller's context deadline so a stuck network cannot block a worker.
 func (w *EmailProcessor) sendWithTimeout(ctx context.Context, addr string, auth smtp.Auth, to string, msg []byte) error {
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("dial failed: %w", err)
+	}
+
+	// Bound the whole SMTP conversation, not just the dial.
+	if deadline, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(deadline)
+	} else {
+		conn.SetDeadline(time.Now().Add(30 * time.Second))
 	}
 
 	c, err := smtp.NewClient(conn, w.smtpHost)
@@ -126,13 +135,26 @@ func (w *EmailProcessor) sendWithTimeout(ctx context.Context, addr string, auth 
 	}
 	defer c.Close()
 
+	// Opportunistic STARTTLS: upgrade only if the server advertises it.
+	// Gmail and most real providers require it. Local sinks like Mailpit
+	// typically do not, and will reject the STARTTLS command if sent anyway.
+	if ok, _ := c.Extension("STARTTLS"); ok {
+		if err := c.StartTLS(&tls.Config{ServerName: w.smtpHost}); err != nil {
+			return fmt.Errorf("starttls failed: %w", err)
+		}
+	}
+
 	if auth != nil {
 		if err := c.Auth(auth); err != nil {
 			return fmt.Errorf("auth failed: %w", err)
 		}
 	}
 
-	if err := c.Mail(w.smtpUser); err != nil {
+	from := w.smtpUser
+	if from == "" {
+		from = "rjq@localhost"
+	}
+	if err := c.Mail(from); err != nil {
 		return fmt.Errorf("mail from failed: %w", err)
 	}
 	if err := c.Rcpt(to); err != nil {

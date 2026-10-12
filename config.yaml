@@ -3,7 +3,7 @@ server:
 
 queue:
   workers: 5
-  demo_delay_seconds: 1
+  demo_delay_seconds: 0
   cooldown_seconds: 0
 
 email:

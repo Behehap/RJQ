@@ -57,6 +57,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/pending/rate-limited", h.GetPendingRateLimited)
 	r.Post("/jobs/{id}/retry", h.RetryJob)
 	r.Handle("/metrics", promhttp.Handler())
+	r.Get("/counts", h.GetCounts)
 }
 
 // CreateJob handles POST /jobs.
@@ -331,4 +332,17 @@ func (h *Handler) RetryJob(w http.ResponseWriter, r *http.Request) {
 		"status": "pending",
 		"job_id": id,
 	})
+}
+
+// GetCounts handles GET /counts.
+// Returns total job counts grouped by queue type and status.
+func (h *Handler) GetCounts(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.store.CountByQueueAndStatus()
+	if err != nil {
+		log.WithError(err).Error("Failed to count jobs")
+		writeError(w, http.StatusInternalServerError, "failed to count jobs")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rows)
 }
