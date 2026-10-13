@@ -1,19 +1,24 @@
 package queue
 
 import (
-	"rjq/pkg/models"
+	"fmt"
 	"time"
+
+	"rjq/pkg/models"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Router holds all three queues and routes jobs to the correct one.
+// Workers pull through the Router; they never touch a queue directly.
 type Router struct {
 	FIFO        *MemoryQueue
-	Priority    *MemoryQueue
+	Priority    *SortedQueue
 	RateLimited *RateLimitedQueue
 }
 
 // NewRouter creates a router with all three queue types.
-func NewRouter(fifo, priority *MemoryQueue, rateLimited *RateLimitedQueue) *Router {
+func NewRouter(fifo *MemoryQueue, priority *SortedQueue, rateLimited *RateLimitedQueue) *Router {
 	return &Router{
 		FIFO:        fifo,
 		Priority:    priority,
@@ -21,67 +26,81 @@ func NewRouter(fifo, priority *MemoryQueue, rateLimited *RateLimitedQueue) *Rout
 	}
 }
 
-// Enqueue routes a job to the appropriate queue based on QueueType.
+// Enqueue routes a job to the appropriate queue based on its QueueType.
 func (r *Router) Enqueue(job *models.Job) error {
-	var err error
 	switch job.QueueType {
 	case models.QueueTypePriority:
-		err = r.Priority.Enqueue(job)
+		return r.Priority.Enqueue(job)
 	case models.QueueTypeRateLimited:
-		err = r.RateLimited.Enqueue(job)
+		return r.RateLimited.Enqueue(job)
 	default:
-		err = r.FIFO.Enqueue(job)
+		return r.FIFO.Enqueue(job)
 	}
-
-	return err
 }
 
-// Dequeue pulls from all queues with strict priority order:
-// 1. Priority (always first — urgent matters)
-// 2. Rate-limited (if token available)
-// 3. FIFO (lowest priority)
+// Dequeue returns the next job, preferring priority over rate-limited over FIFO.
+//
+// It blocks until a job is available. Returns nil if all queues are closed.
 func (r *Router) Dequeue() (*models.Job, error) {
 	for {
-		// Priority ALWAYS checked first.
-		select {
-		case job := <-r.Priority.jobs:
+		// Priority first.
+		if job, err := r.Priority.DequeueOrWait(0); err == nil && job != nil {
 			return job, nil
-		default:
 		}
 
-		// Rate-limited with token check.
+		// Rate-limited next (only if a token is available).
 		if r.RateLimited.AvailableTokens() > 0 {
-			select {
-			case job := <-r.RateLimited.jobs:
-				r.RateLimited.mu.Lock()
-				if r.RateLimited.tokens > 0 {
-					r.RateLimited.tokens--
-				}
-				r.RateLimited.mu.Unlock()
-
+			if job, err := r.RateLimited.DequeueOrWait(0); err == nil && job != nil {
 				return job, nil
-
-			default:
 			}
 		}
 
+		// FIFO last.
+		if job, err := r.FIFO.DequeueOrWait(0); err == nil && job != nil {
+			return job, nil
+		}
+
+		// Nothing available. Sleep briefly then retry.
+		time.Sleep(20 * time.Millisecond)
 	}
-
 }
 
-// Close closes all queues.
-func (r *Router) Close() error {
-	r.FIFO.Close()
-	r.Priority.Close()
-	return r.RateLimited.Close()
+// DequeueOrWait waits up to d for a job. Returns nil if none arrived.
+//
+// The worker pool calls this in a loop so it can periodically re-check
+// the preempt slots without blocking forever.
+func (r *Router) DequeueOrWait(d time.Duration) (*models.Job, error) {
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		// Priority first.
+		if job, err := r.Priority.DequeueOrWait(0); err == nil && job != nil {
+			return job, nil
+		}
+
+		// Rate-limited next if token available.
+		if r.RateLimited.AvailableTokens() > 0 {
+			if job, err := r.RateLimited.DequeueOrWait(0); err == nil && job != nil {
+				return job, nil
+			}
+		}
+
+		// FIFO last.
+		if job, err := r.FIFO.DequeueOrWait(0); err == nil && job != nil {
+			return job, nil
+		}
+
+		// Nothing available. Short sleep then retry.
+		time.Sleep(10 * time.Millisecond)
+	}
+	return nil, nil
 }
 
-// Ack delegates to the appropriate queue.
+// Ack marks a job as successfully processed.
 func (r *Router) Ack(jobID string) error {
 	return r.FIFO.Ack(jobID)
 }
 
-// Nack delegates to the FIFO queue's Nack.
+// Nack handles a failed job.
 func (r *Router) Nack(jobID string) error {
 	return r.FIFO.Nack(jobID)
 }
@@ -91,76 +110,45 @@ func (r *Router) PendingCount() int {
 	return r.FIFO.PendingCount() + r.Priority.PendingCount() + r.RateLimited.PendingCount()
 }
 
-// SetProcessing delegates to the FIFO queue.
+// SetProcessing marks a job as processing in storage.
 func (r *Router) SetProcessing(jobID string) error {
 	return r.FIFO.SetProcessing(jobID)
 }
 
-// Requeue delegates to the FIFO queue.
+// Requeue resets a preempted job and re-enqueues it.
 func (r *Router) Requeue(jobID string) error {
 	return r.FIFO.Requeue(jobID)
 }
 
-// Recover delegates to all queues.
-func (r *Router) Recover() error {
-	if err := r.FIFO.Recover(); err != nil {
-		return err
-	}
-	if err := r.Priority.Recover(); err != nil {
-		return err
-	}
-	return r.RateLimited.Recover()
-}
-
-// Retry delegates to the FIFO queue's Retry.
+// Retry gives a failed job more retries and re-enqueues it.
 func (r *Router) Retry(jobID string, extraRetries int) error {
 	return r.FIFO.Retry(jobID, extraRetries)
 }
 
-func (r *Router) dequeueNonBlocking() (*models.Job, error) {
-	// Priority first
-	select {
-	case job := <-r.Priority.jobs:
-		return job, nil
-	default:
+// Close shuts down all three queues.
+func (r *Router) Close() error {
+	if err := r.FIFO.Close(); err != nil {
+		log.WithError(err).Error("Failed to close FIFO queue")
 	}
-
-	// Rate-limited if token available
-	if r.RateLimited.AvailableTokens() > 0 {
-		select {
-		case job := <-r.RateLimited.jobs:
-			r.RateLimited.mu.Lock()
-			if r.RateLimited.tokens > 0 {
-				r.RateLimited.tokens--
-			}
-			r.RateLimited.mu.Unlock()
-			return job, nil
-		default:
-		}
+	if err := r.Priority.Close(); err != nil {
+		log.WithError(err).Error("Failed to close priority queue")
 	}
-
-	// FIFO last
-	select {
-	case job := <-r.FIFO.jobs:
-		return job, nil
-	default:
+	if err := r.RateLimited.Close(); err != nil {
+		log.WithError(err).Error("Failed to close rate-limited queue")
 	}
-
-	return nil, nil
+	return nil
 }
 
-func (r *Router) DequeueOrWait(d time.Duration) (*models.Job, error) {
-	deadline := time.Now().Add(d)
-	for time.Now().Before(deadline) {
-		// Try the fast path — the existing Dequeue.
-		job, err := r.dequeueNonBlocking()
-		if err != nil {
-			return nil, err
-		}
-		if job != nil {
-			return job, nil
-		}
-		time.Sleep(10 * time.Millisecond)
+// Recover restores pending and processing jobs on startup.
+func (r *Router) Recover() error {
+	if err := r.FIFO.Recover(); err != nil {
+		return fmt.Errorf("fifo recover: %w", err)
 	}
-	return nil, nil
+	if err := r.Priority.Recover(); err != nil {
+		return fmt.Errorf("priority recover: %w", err)
+	}
+	if err := r.RateLimited.Recover(); err != nil {
+		return fmt.Errorf("rate-limited recover: %w", err)
+	}
+	return nil
 }

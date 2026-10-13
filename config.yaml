@@ -27,8 +27,8 @@ timeout:
   job_seconds: 30
 
 rate_limit:
-  emails_per_minute: 3
-  burst: 1
+  emails_per_minute: 60
+  burst: 10
 
 database:
   backend: "postgres" # sqlite or postgres

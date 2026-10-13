@@ -86,12 +86,26 @@ func (q *RateLimitedQueue) AvailableTokens() int {
 }
 
 func (q *RateLimitedQueue) DequeueOrWait(d time.Duration) (*models.Job, error) {
-	
-	job, err := q.Dequeue()
-	if err != nil || job != nil {
-		return job, err
+	var job *models.Job
+
+	select {
+	case j, ok := <-q.jobs:
+		if !ok {
+			return nil, nil
+		}
+		job = j
+	case <-time.After(d):
+		return nil, nil
 	}
 
-	time.Sleep(d)
-	return q.Dequeue()
+	for {
+		q.mu.Lock()
+		if q.tokens > 0 {
+			q.tokens--
+			q.mu.Unlock()
+			return job, nil
+		}
+		q.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+	}
 }

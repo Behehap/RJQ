@@ -212,9 +212,21 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 
 // Health handles GET /health.
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
+	workersAlive := h.pool.AliveWorkers()
+	status := "ok"
+	code := http.StatusOK
+
+	if workersAlive < h.pool.ExpectedWorkers() {
+		status = "degraded"
+		code = http.StatusServiceUnavailable
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "ok",
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":           status,
+		"workers_alive":    workersAlive,
+		"workers_expected": h.pool.ExpectedWorkers(),
 	})
 }
 

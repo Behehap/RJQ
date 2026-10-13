@@ -40,8 +40,6 @@ func (q *MemoryQueue) Enqueue(job *models.Job) error {
 		q.mu.Unlock()
 		return fmt.Errorf("queue is closed")
 	}
-	// Register an in-flight send before releasing the lock.
-	// This ensures Close() will wait for us to finish.
 	q.wg.Add(1)
 	q.mu.Unlock()
 	defer q.wg.Done()
@@ -51,8 +49,10 @@ func (q *MemoryQueue) Enqueue(job *models.Job) error {
 		return nil
 	case <-q.done:
 		return fmt.Errorf("queue is closing")
-	}
+	case <-time.After(5 * time.Second):
 
+		return fmt.Errorf("queue is full, timed out waiting for space")
+	}
 }
 
 // Dequeue blocks until a job is available. If the queue is closed and

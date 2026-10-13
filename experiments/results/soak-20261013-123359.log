@@ -1,0 +1,9 @@
+[12:34:29] elapsed=30s remaining=1770s submitted=188 (6.2/s) pending=9 processing=0
+[12:34:59] elapsed=60s remaining=1740s submitted=382 (6.3/s) pending=17 processing=0
+[12:35:29] elapsed=90s remaining=1710s submitted=577 (6.4/s) pending=24 processing=0
+[12:35:59] elapsed=120s remaining=1680s submitted=772 (6.4/s) pending=33 processing=0
+[12:36:29] elapsed=150s remaining=1650s submitted=964 (6.4/s) pending=44 processing=0
+[12:36:59] elapsed=180s remaining=1620s submitted=1158 (6.4/s) pending=54 processing=0
+[12:37:29] elapsed=210s remaining=1590s submitted=1349 (6.4/s) pending=68 processing=0
+[12:37:59] elapsed=240s remaining=1560s submitted=1539 (6.4/s) pending=71 processing=0
+[12:38:29] elapsed=270s remaining=1530s submitted=1727 (6.3/s) pending=81 processing=0

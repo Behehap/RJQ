@@ -49,7 +49,7 @@ func main() {
 
 	// Create all three queue instances.
 	fifoQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
-	priorityQueue := queue.NewMemoryQueue(store, cfg.Queue.Workers*10)
+	priorityQueue := queue.NewSortedQueue(store, cfg.Queue.Workers*10)
 	rateLimitedQueue := queue.NewRateLimitedQueue(store, cfg.Queue.Workers*10,
 		cfg.RateLimit.EmailsPerMinute, cfg.RateLimit.Burst)
 

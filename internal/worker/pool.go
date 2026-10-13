@@ -3,7 +3,9 @@ package worker
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"rjq/internal/metrics"
@@ -26,16 +28,24 @@ type workerState struct {
 
 // Pool manages a fixed number of worker goroutines.
 type Pool struct {
-	queue         queue.Queue
-	processor     Processor
-	count         int
-	timeout       time.Duration
-	cooldown      time.Duration
-	wg            sync.WaitGroup
-	mu            sync.Mutex
+	queue     queue.Queue
+	processor Processor
+	count     int
+	timeout   time.Duration
+	cooldown  time.Duration
+
+	wg   sync.WaitGroup
+	mu   sync.Mutex
+	done chan struct{} // closed to tell workers to exit
+
 	workers       []*workerState
 	preemptQueue  []*models.Job   // preempted slot gets the super-urgent job
 	preemptSignal []chan struct{} // Signal for a super urgent job
+
+	workerDied chan int // worker ID sent here on exit
+
+	// number of worker goroutines currently running
+	aliveWorkers atomic.Int32
 }
 
 // NewPool creates a worker pool.
@@ -46,9 +56,11 @@ func NewPool(q queue.Queue, p Processor, workers int, timeout, cooldown time.Dur
 		count:         workers,
 		timeout:       timeout,
 		cooldown:      cooldown,
+		done:          make(chan struct{}),
 		workers:       make([]*workerState, workers),
 		preemptQueue:  make([]*models.Job, workers),
 		preemptSignal: make([]chan struct{}, workers),
+		workerDied:    make(chan int, workers),
 	}
 }
 
@@ -60,13 +72,29 @@ func (p *Pool) Start() {
 		p.wg.Add(1)
 		go p.worker(i)
 	}
+	go p.supervise()
 	log.WithField("workers", p.count).Info("Worker pool started")
+}
+
+// Stop tells all workers to exit their loops.
+func (p *Pool) Stop() {
+	close(p.done)
 }
 
 // Wait blocks until all workers have exited.
 func (p *Pool) Wait() {
 	p.wg.Wait()
 	log.Info("All workers stopped")
+}
+
+// ExpectedWorkers returns the configured worker count.
+func (p *Pool) ExpectedWorkers() int {
+	return p.count
+}
+
+// AliveWorkers returns how many worker goroutines are running.
+func (p *Pool) AliveWorkers() int {
+	return int(p.aliveWorkers.Load())
 }
 
 // Preempt cancels a running normal-priority job to make room for a
@@ -94,14 +122,32 @@ func (p *Pool) Preempt(job *models.Job) (string, error) {
 }
 
 // worker runs the dequeue-process loop for a single goroutine.
+// Deferred order is LIFO: death signal, recover, wg.Done.
 func (p *Pool) worker(id int) {
+	p.aliveWorkers.Add(1)
+	defer p.aliveWorkers.Add(-1)
+
 	defer p.wg.Done()
 	defer p.recoverWorker(id)
+	defer func() {
+		// non-blocking so a full channel doesn't block shutdown
+		select {
+		case p.workerDied <- id:
+		default:
+			log.WithField("worker_id", id).Warn("death signal dropped")
+		}
+	}()
 
 	log.WithField("worker_id", id).Info("Worker started")
 
 	for {
-		
+		select {
+		case <-p.done:
+			log.WithField("worker_id", id).Info("Worker exiting: pool stopped")
+			return
+		default:
+		}
+
 		p.mu.Lock()
 		preemptJob := p.preemptQueue[id]
 		p.preemptQueue[id] = nil
@@ -133,10 +179,10 @@ func (p *Pool) worker(id int) {
 
 // processJob wraps the Processor call with a timeout and handles Ack/Nack.
 func (p *Pool) processJob(workerID int, job *models.Job) {
-	    // Wait time = time from creation to when a worker picked it up.
-    wait := time.Since(job.CreatedAt).Seconds()
-    metrics.JobWaitDuration.WithLabelValues(job.QueueType).Observe(wait)
-	
+	// Wait time = time from creation to when a worker picked it up.
+	wait := time.Since(job.CreatedAt).Seconds()
+	metrics.JobWaitDuration.WithLabelValues(job.QueueType).Observe(wait)
+
 	if err := p.queue.SetProcessing(job.ID); err != nil {
 		log.WithFields(log.Fields{
 			"worker_id": workerID,
@@ -218,11 +264,37 @@ func (p *Pool) processJob(workerID int, job *models.Job) {
 }
 
 // recoverWorker catches panics so one bad job doesn't crash the pool.
+// Logs the panic value and stack so we can see what killed the worker.
 func (p *Pool) recoverWorker(id int) {
 	if r := recover(); r != nil {
 		log.WithFields(log.Fields{
 			"worker_id": id,
 			"panic":     r,
-		}).Error("Worker panicked and recovered")
+			"stack":     string(debug.Stack()),
+		}).Error("Worker panicked")
+	}
+}
+
+// supervise watches for dead workers and restarts them.
+func (p *Pool) supervise() {
+	for {
+		select {
+		case <-p.done:
+			log.Info("Supervisor exiting: pool stopped")
+			return
+		case id := <-p.workerDied:
+			log.WithField("worker_id", id).Warn("Worker died, restarting")
+			select {
+			case <-time.After(1 * time.Second):
+			case <-p.done:
+				log.Info("Supervisor exiting during restart backoff")
+				return
+			}
+
+			p.wg.Add(1)
+			go p.worker(id)
+
+			log.WithField("worker_id", id).Info("Worker restarted")
+		}
 	}
 }
