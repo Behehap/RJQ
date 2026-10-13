@@ -1,26 +1,36 @@
+cat > .gitignore << 'EOF'
 # Binaries
 rjq
 rjq.exe
 cmd/server/server
 
-# Database
+# Databases
 *.db
 *.sqlite
+*.sqlite3
 
-# Environment secrets
+# Environment
 .env
+.env.local
+
+# Build and test artifacts
+results/
+experiments/results/
+bin/
+dist/
+build/
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo
 *~
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
 # Go workspace
 go.work
 go.work.sum
+EOF
