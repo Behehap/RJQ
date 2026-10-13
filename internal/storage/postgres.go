@@ -233,7 +233,6 @@ func (s *PostgresStorage) ResetForRetry(id string, extraRetries int) error {
 	query := `
 	UPDATE jobs
 	SET status = 'pending',
-	    retry_count = 0,
 	    max_retries = max_retries + $1,
 	    error_message = '',
 	    updated_at = $2
