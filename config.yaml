@@ -27,7 +27,7 @@ timeout:
   job_seconds: 30
 
 rate_limit:
-  emails_per_minute: 60
+  emails_per_minute: 2
   burst: 10
 
 database:

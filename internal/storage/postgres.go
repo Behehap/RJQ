@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	"time"
 
+	"rjq/internal/metrics"
 	"rjq/pkg/models"
 
 	_ "github.com/lib/pq"
@@ -150,6 +152,14 @@ func (s *PostgresStorage) GetJob(id string) (*models.Job, error) {
 }
 
 func (s *PostgresStorage) UpdateJobStatus(id string, status string, errMsg string) error {
+	job, err := s.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to load job for status update: %w", err)
+	}
+	if job == nil {
+		return fmt.Errorf("job %s not found", id)
+	}
+
 	now := time.Now()
 	query := `
 	UPDATE jobs
@@ -159,14 +169,30 @@ func (s *PostgresStorage) UpdateJobStatus(id string, status string, errMsg strin
 	    processed_at = CASE WHEN $1 IN ('completed', 'failed') THEN $3 ELSE processed_at END
 	WHERE id = $4`
 
-	_, err := s.db.Exec(query, status, errMsg, now, id)
+	_, err = s.db.Exec(query, status, errMsg, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
+
+	switch status {
+	case models.StatusCompleted:
+		metrics.JobsCompleted.WithLabelValues(job.QueueType).Inc()
+	case models.StatusFailed:
+		metrics.JobsFailed.WithLabelValues(job.QueueType).Inc()
+	}
+
 	return nil
 }
 
 func (s *PostgresStorage) UpdateJobRetry(id string, status string, retryCount int, errMsg string) error {
+	job, err := s.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to load job for retry update: %w", err)
+	}
+	if job == nil {
+		return fmt.Errorf("job %s not found", id)
+	}
+
 	now := time.Now()
 	query := `
 	UPDATE jobs
@@ -177,10 +203,18 @@ func (s *PostgresStorage) UpdateJobRetry(id string, status string, retryCount in
 	    processed_at = CASE WHEN $1 IN ('completed', 'failed') THEN $4 ELSE processed_at END
 	WHERE id = $5`
 
-	_, err := s.db.Exec(query, status, retryCount, errMsg, now, id)
+	_, err = s.db.Exec(query, status, retryCount, errMsg, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to update job retry: %w", err)
 	}
+
+	switch status {
+	case models.StatusPending:
+		metrics.JobsRetried.WithLabelValues(job.QueueType).Inc()
+	case models.StatusFailed:
+		metrics.JobsFailed.WithLabelValues(job.QueueType).Inc()
+	}
+
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 	"rjq/internal/queue"
 	"rjq/internal/storage"
 	"rjq/internal/worker"
+	"rjq/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -45,6 +46,21 @@ func main() {
 	// Register the queue depth collector so it reads live from the database.
 	if dbStore, ok := store.(interface{ DB() *sql.DB }); ok {
 		prometheus.MustRegister(metrics.NewQueueDepthCollector(dbStore.DB()))
+		log.Info("Queue depth collector registered")
+	} else {
+		log.Warn("Storage does not expose DB(), queue depth collector skipped")
+	}
+
+	// Pre-register counters with zero values so the dashboard shows them
+	// before any failures occur.
+	for _, q := range []string{
+		models.QueueTypeFIFO,
+		models.QueueTypePriority,
+		models.QueueTypeRateLimited,
+	} {
+		metrics.JobsFailed.WithLabelValues(q).Add(0)
+		metrics.JobsRetried.WithLabelValues(q).Add(0)
+		metrics.JobsPreempted.WithLabelValues(q).Add(0)
 	}
 
 	// Create all three queue instances.
@@ -135,6 +151,7 @@ func main() {
 	}
 
 	router.Close()
+	pool.Stop()
 	pool.Wait()
 
 	log.Info("Server stopped")
