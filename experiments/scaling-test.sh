@@ -24,8 +24,6 @@ sleep 3
 ./experiments/reset.sh > /dev/null
 
 echo "Submitting $JOBS jobs..."
-
-# 3. Submit and time it
 START_TIME=$(date +%s%3N)
 
 seq 1 $JOBS | xargs -P 50 -I {} curl -s -X POST "$API" \
@@ -35,7 +33,7 @@ seq 1 $JOBS | xargs -P 50 -I {} curl -s -X POST "$API" \
 
 echo "All jobs submitted. Waiting for queue to drain..."
 
-# 4. Poll until empty
+# 3. Poll until empty
 while true; do
   STATS=$(curl -s http://localhost:8080/stats)
   PENDING=$(echo "$STATS" | grep -o '"pending":[0-9]*' | cut -d: -f2)
@@ -50,21 +48,17 @@ done
 END_TIME=$(date +%s%3N)
 DURATION_MS=$((END_TIME - START_TIME))
 DURATION_SEC=$(echo "scale=2; $DURATION_MS / 1000" | bc)
-JPS=$(echo "scale=2; $JOBS / $DURATION_SEC" | bc)
 
 echo ""
 echo "=============================================="
-echo "  Results for $WORKERS Worker(s)"
-echo "=============================================="
 echo "  Total Time:  ${DURATION_SEC} seconds"
-echo "  Throughput:  ${JPS} jobs/sec"
+echo "=============================================="
 
-# 5. Save metrics (with duplicate handling)
+# 4. Save metrics
 mkdir -p results/scaling
 BASE_NAME="results/scaling/workers-${WORKERS}"
 FILENAME="${BASE_NAME}.txt"
 
-# Check if the file exists and find the next available number
 if [ -f "$FILENAME" ]; then
   COUNTER=1
   while [ -f "${BASE_NAME}(${COUNTER}).txt" ]; do
@@ -75,3 +69,10 @@ fi
 
 curl -s http://localhost:8080/metrics > "$FILENAME"
 echo "  Metrics saved to $FILENAME"
+
+# 5. Save the exact time for the analysis script
+if [ ! -f results/scaling_times.csv ]; then
+    echo "workers,wall_clock_seconds" > results/scaling_times.csv
+fi
+echo "$WORKERS,$DURATION_SEC" >> results/scaling_times.csv
+echo "  Time recorded in results/scaling_times.csv"
