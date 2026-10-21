@@ -336,8 +336,4 @@ The priority queue holds jobs in memory. A pending backlog larger than the avail
 
 ## License
 
-MIT
-
-```
-
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
